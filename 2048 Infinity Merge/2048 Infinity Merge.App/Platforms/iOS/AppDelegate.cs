@@ -1,6 +1,6 @@
 ﻿using Foundation;
 
-namespace InfinityMerge2048.App;
+namespace _2048_Infinity_Merge.App;
 
 [Register("AppDelegate")]
 public class AppDelegate : MauiUIApplicationDelegate

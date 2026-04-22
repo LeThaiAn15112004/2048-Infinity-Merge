@@ -1,5 +1,7 @@
 <Solution>
+  <Project Path="2048 Infinity Merge.App/2048 Infinity Merge.App.csproj">
+    <Deploy Solution="Debug|*" />
+  </Project>
   <Project Path="2048 Infinity Merge.AppHost/2048 Infinity Merge.AppHost.csproj" />
   <Project Path="2048 Infinity Merge.ServiceDefaults/2048 Infinity Merge.ServiceDefaults.csproj" />
-  <Project Path="2048 Infinity Merge.App/InfinityMerge2048.App.csproj" />
 </Solution>

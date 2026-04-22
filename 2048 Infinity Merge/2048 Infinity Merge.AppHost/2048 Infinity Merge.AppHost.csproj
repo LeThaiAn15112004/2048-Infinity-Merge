@@ -5,11 +5,11 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <UserSecretsId>264af4fe-de9f-4406-9f71-8a90c5800057</UserSecretsId>
+    <UserSecretsId>0b6fdd0d-1d90-4ae3-94ae-37067d01ab3c</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\InfinityMerge2048.App\InfinityMerge2048.App.csproj">
+    <ProjectReference Include="..\2048 Infinity Merge.App\2048 Infinity Merge.App.csproj">
       <SetTargetFramework>TargetFramework=net10.0</SetTargetFramework>
     </ProjectReference>
   </ItemGroup>

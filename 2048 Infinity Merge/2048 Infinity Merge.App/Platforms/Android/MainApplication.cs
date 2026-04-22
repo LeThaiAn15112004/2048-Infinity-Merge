@@ -1,7 +1,7 @@
 ﻿using Android.App;
 using Android.Runtime;
 
-namespace InfinityMerge2048.App;
+namespace _2048_Infinity_Merge.App;
 
 [Application]
 public class MainApplication : MauiApplication

@@ -1,4 +1,4 @@
-﻿namespace InfinityMerge2048.App;
+﻿namespace _2048_Infinity_Merge.App;
 
 public partial class App : Application
 {
@@ -9,6 +9,6 @@ public partial class App : Application
 
 	protected override Window CreateWindow(IActivationState? activationState)
 	{
-		return new Window(new MainPage()) { Title = "InfinityMerge2048.App" };
+		return new Window(new MainPage()) { Title = "2048 Infinity Merge.App" };
 	}
 }

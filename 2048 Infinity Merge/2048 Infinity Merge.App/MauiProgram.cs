@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 
-namespace InfinityMerge2048.App;
+namespace _2048_Infinity_Merge.App;
 
 public static class MauiProgram
 {
