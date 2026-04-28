@@ -12,6 +12,7 @@ public static class MauiProgram
 			.ConfigureFonts(fonts =>
 			{
 				fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+				fonts.AddFont("PressStart2P-Regular.ttf", "PressStart2P");
 			});
 
 		builder.Services.AddMauiBlazorWebView();
