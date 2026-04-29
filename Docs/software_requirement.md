@@ -46,6 +46,7 @@ flowchart TD
     Game["Game Screen<br/><i>(Pause shown as modal)</i>"]
     GameOver["Game Over"]
     Settings["Settings"]
+    Help["Help<br/><i>(How to play)</i>"]
 
     Home -->|Tap a mode card| Game
     Game -->|No valid move / time out| GameOver
@@ -53,6 +54,8 @@ flowchart TD
     GameOver -->|Home| Home
     Home --> Settings
     Settings --> Home
+    Home --> Help
+    Help --> Home
 ```
 
 > **Notes:**
@@ -77,6 +80,7 @@ flowchart LR
         UC3(("UC-03<br/>Pause / Resume<br/><i>(modal)</i>"))
         UC4(("UC-04<br/>Adjust Settings"))
         UC5(("UC-05<br/>Reset High Scores"))
+        UC6(("UC-06<br/>View Help<br/>(How to Play)"))
     end
 
     Player --- UC1
@@ -84,6 +88,7 @@ flowchart LR
     Player --- UC3
     Player --- UC4
     Player --- UC5
+    Player --- UC6
 
     UC1 -. "&laquo;include&raquo;" .-> UC2
     UC5 -. "&laquo;extend&raquo;" .-> UC4
@@ -138,8 +143,17 @@ flowchart LR
 |-------|-------------|
 | **Actor** | Player |
 | **Pre-condition** | The Settings screen is displayed. |
-| **Main flow** | 1. Player taps **Reset High Scores** on the Settings screen.<br/>2. System asks for confirmation.<br/>3. On confirmation, system clears all high score records (every `grid × mode` pair) in local storage.<br/>4. Subsequent visits to the Mode Select screen will show empty / zero high scores. |
+| **Main flow** | 1. Player taps **Reset High Scores** on the Settings screen.<br/>2. System asks for confirmation.<br/>3. On confirmation, system clears all high score records (every `grid × mode` pair) in local storage.<br/>4. Subsequent visits to the Home screen will show empty / zero high scores on every mode card. |
 | **Post-condition** | All high scores are erased from local storage. |
+
+### UC-06. View Help (How to Play)
+
+| Field | Description |
+|-------|-------------|
+| **Actor** | Player |
+| **Pre-condition** | The Home screen is displayed. |
+| **Main flow** | 1. Player taps the **Help** button on the Home screen.<br/>2. System navigates to the **Help** screen.<br/>3. System displays the gameplay instructions: how to swipe / use arrow keys, the merge rule (powers of 2), how scoring works, and a brief description of each mode (Classic vs Time).<br/>4. Player taps **Back** to return to the Home screen. |
+| **Post-condition** | The player has seen the instructions; the app returns to the Home screen. |
 
 ---
 
