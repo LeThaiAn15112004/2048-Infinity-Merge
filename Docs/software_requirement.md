@@ -79,8 +79,7 @@ flowchart LR
         UC2(("UC-02<br/>Play Game<br/>(Make Move)"))
         UC3(("UC-03<br/>Pause / Resume<br/><i>(modal)</i>"))
         UC4(("UC-04<br/>Adjust Settings"))
-        UC5(("UC-05<br/>Reset High Scores"))
-        UC6(("UC-06<br/>View Help<br/>(How to Play)"))
+        UC5(("UC-05<br/>View Help<br/>(How to Play)"))
     end
 
     Player --- UC1
@@ -88,13 +87,11 @@ flowchart LR
     Player --- UC3
     Player --- UC4
     Player --- UC5
-    Player --- UC6
 
     UC1 -. "&laquo;include&raquo;" .-> UC2
-    UC5 -. "&laquo;extend&raquo;" .-> UC4
 ```
 
-> **Note:** *Viewing* high scores is **not** a separate use case — every high score is shown inline on its corresponding mode card on the **Home** screen (one card per `mode × grid size` combination). *Resetting* them, however, is still a discrete action available from the Settings screen.
+> **Note:** *Viewing* high scores is **not** a separate use case — every high score is shown inline on its corresponding mode card on the **Home** screen (one card per `mode × grid size` combination). High scores are accumulated automatically as the player beats their previous best; there is **no manual reset** in the current version.
 
 ---
 
@@ -137,16 +134,7 @@ flowchart LR
 | **Main flow** | 1. Player changes a setting (e.g. sound on/off, theme, default time for Time Mode).<br/>2. System validates and applies the change immediately.<br/>3. System persists the new setting to local storage. |
 | **Post-condition** | The new settings are active and persisted across app restarts. |
 
-### UC-05. Reset High Scores
-
-| Field | Description |
-|-------|-------------|
-| **Actor** | Player |
-| **Pre-condition** | The Settings screen is displayed. |
-| **Main flow** | 1. Player taps **Reset High Scores** on the Settings screen.<br/>2. System asks for confirmation.<br/>3. On confirmation, system clears all high score records (every `grid × mode` pair) in local storage.<br/>4. Subsequent visits to the Home screen will show empty / zero high scores on every mode card. |
-| **Post-condition** | All high scores are erased from local storage. |
-
-### UC-06. View Help (How to Play)
+### UC-05. View Help (How to Play)
 
 | Field | Description |
 |-------|-------------|
