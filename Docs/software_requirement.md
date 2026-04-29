@@ -16,15 +16,17 @@ The system is a single-player offline puzzle game. It interacts with only one ex
 
 ```mermaid
 flowchart LR
-    Player(("Player"))
-    System["<b>2048 Infinity Merge</b><br/>(MAUI Blazor Hybrid App)"]
-    Storage[("Local Storage<br/>on device")]
+    Player["Player"]
+    Storage["Local Storage<br/>(on device)"]
+    System(("<b>2048 Infinity<br/>Merge</b>"))
 
     Player -- "swipe / tap / key input" --> System
     System -- "UI updates, score, animations" --> Player
-    System -- "read / write" --> Storage
-    Storage -- "settings, high scores" --> System
+    System -- "write settings, high scores" --> Storage
+    Storage -- "read settings, high scores" --> System
 ```
+
+> **Notation:** following the Yourdon / DeMarco convention — the **circle** in the center is the system (single process at context level), and the **rectangles** around it are external entities that interact with the system.
 
 | # | Entity | Type | Description |
 |---|--------|------|-------------|
