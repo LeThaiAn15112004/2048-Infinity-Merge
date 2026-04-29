@@ -68,5 +68,5 @@ The goal of this project is not only to faithfully recreate the original 2048 ex
 
 ## 8. Scope
 
-- ✅ **In scope:** core 2048 gameplay, multiple grid sizes, Classic / Time game modes, local high-score persistence, cross-platform UI.
-- ❌ **Out of scope (current version):** online multiplayer, global online leaderboards, user accounts, in-app purchases.
+- ✅ **In scope:** core 2048 gameplay, multiple grid sizes, Classic / Time game modes, local high-score persistence, cross-platform UI,  in-app purchases.
+- ❌ **Out of scope (current version):** online multiplayer, global online leaderboards, user accounts.
