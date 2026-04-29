@@ -1,5 +1,20 @@
 # Project Introduction — 2048 Infinity Merge
 
+## Table of Contents
+
+- [1. Project Name](#1-project-name)
+- [2. Overview](#2-overview)
+- [3. Project Goals](#3-project-goals)
+- [4. Gameplay](#4-gameplay)
+  - [4.1. Core Rules](#41-core-rules)
+  - [4.2. Scoring](#42-scoring)
+- [5. Variants & Game Modes](#5-variants--game-modes)
+  - [5.1. By Grid Size](#51-by-grid-size)
+  - [5.2. By Game Mode](#52-by-game-mode)
+- [6. Target Audience](#6-target-audience)
+- [7. Platform & Technology](#7-platform--technology)
+- [8. Scope](#8-scope)
+
 ## 1. Project Name
 
 **2048 Infinity Merge**
