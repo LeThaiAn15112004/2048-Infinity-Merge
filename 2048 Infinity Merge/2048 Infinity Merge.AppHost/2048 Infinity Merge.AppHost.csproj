@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="OpenTelemetry.Api" Version="1.14.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\2048 Infinity Merge.App\2048 Infinity Merge.App.csproj">
       <SetTargetFramework>TargetFramework=net10.0</SetTargetFramework>
     </ProjectReference>

@@ -1,13 +1,22 @@
+/* Home Page Styles */
 .home-page {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    min-height: 100dvh;
 }
 
 .home-actions {
     display: flex;
     justify-content: flex-end;
     gap: 0.75rem;
+}
+
+.home-title-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .home-action-button {
@@ -22,14 +31,16 @@
 
 .home-title {
     margin: 0;
-    font-family: "PressStart2P", "OpenSansRegular", sans-serif;
-    font-size: clamp(1rem, 2.5vw, 2rem);
-    line-height: 1.5;
+    font-family: "PressStart2P", sans-serif, monospace, "Arial", "Helvetica", "Verdana", "Tahoma", "sans-serif";
+    font-size: 2rem;
+    line-height: 1.4;
+    letter-spacing: 1px;
     color: #f6d64a;
+    text-align: center;
     text-shadow:
-        0 2px 0 #eb2913,
+        0 3px 0 #eb2913,
         2px 0 0 #101030,
         -2px 0 0 #101030,
         0 -2px 0 #101030,
-        0 4px 0 #101030;
+        0 5px 0 #101030;
 }

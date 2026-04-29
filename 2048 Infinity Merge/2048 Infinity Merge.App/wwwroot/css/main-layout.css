@@ -1,0 +1,13 @@
+/* Main Layout Styles */
+.main-layout-page {
+    background-color: beige;
+}
+
+.main-layout-main {
+    min-height: 100vh;
+}
+
+.main-layout-content {
+    padding: 1rem;
+    padding-top: 2rem;
+}

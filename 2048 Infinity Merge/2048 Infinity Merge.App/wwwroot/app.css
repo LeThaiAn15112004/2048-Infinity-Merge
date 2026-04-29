@@ -1,3 +1,11 @@
+@font-face {
+    font-family: 'PressStart2P';
+    src: url('fonts/PressStart2P-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     background-color: beige;
@@ -7,7 +15,14 @@ html, body {
 #app {
     min-height: 100vh;
     background-color: beige;
-    padding: 1rem;
+    padding: 2rem;
+    margin: 0 auto;
+    max-width: 1200px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 a, .btn-link {
