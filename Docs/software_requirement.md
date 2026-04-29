@@ -42,16 +42,12 @@ Main screens of the app and the navigation between them.
 
 ```mermaid
 flowchart TD
-    Home["Home<br/>(Main Menu)"]
-    Size["Grid Size Select<br/>(4x4 / 5x5 / 6x6)"]
-    Mode["Mode Select<br/>(Classic / Time)<br/><i>+ shows high score<br/>per grid × mode</i>"]
+    Home["Home<br/>(Game Mode List — 6 cards)<br/><i>Classic 4x4 / 5x5 / 6x6</i><br/><i>Time&nbsp;&nbsp;&nbsp;&nbsp;4x4 / 5x5 / 6x6</i><br/><i>+ each card shows its own high score</i>"]
     Game["Game Screen<br/><i>(Pause shown as modal)</i>"]
     GameOver["Game Over"]
     Settings["Settings"]
 
-    Home -->|Play| Size
-    Size --> Mode
-    Mode --> Game
+    Home -->|Tap a mode card| Game
     Game -->|No valid move / time out| GameOver
     GameOver -->|Play Again| Game
     GameOver -->|Home| Home
@@ -60,8 +56,12 @@ flowchart TD
 ```
 
 > **Notes:**
-> - There is **no dedicated High Scores screen**. Each grid size has 2 modes (Classic, Time), and the high score for every (grid × mode) pair is shown directly on the **Mode Select** screen.
-> - Pause is **not a separate screen** — it is rendered as a **modal overlay** on top of the Game screen, so it is not drawn here as its own node.
+> - The Home screen **is** the game-mode list. There are **6 modes total**, one card per `(mode × grid size)` pair:
+>   - **Classic 4x4**, **Classic 5x5**, **Classic 6x6**
+>   - **Time 4x4**, **Time 5x5**, **Time 6x6**
+> - There is **no separate "Grid Size Select" screen and no separate "Mode Select" screen** — both choices are unified into a single mode card on Home.
+> - There is **no dedicated High Scores screen**. The high score for each mode is shown directly on its corresponding card on Home.
+> - **Pause** is **not a separate screen** — it is rendered as a **modal overlay** on top of the Game screen.
 
 ---
 
@@ -89,7 +89,7 @@ flowchart LR
     UC5 -. "&laquo;extend&raquo;" .-> UC4
 ```
 
-> **Note:** *Viewing* high scores is **not** a separate use case — high scores are always displayed inline on the **Mode Select** screen during UC-01 (one entry per `mode × grid size` combination). *Resetting* them, however, is still a discrete action available from the Settings screen.
+> **Note:** *Viewing* high scores is **not** a separate use case — every high score is shown inline on its corresponding mode card on the **Home** screen (one card per `mode × grid size` combination). *Resetting* them, however, is still a discrete action available from the Settings screen.
 
 ---
 
@@ -101,7 +101,7 @@ flowchart LR
 |-------|-------------|
 | **Actor** | Player |
 | **Pre-condition** | The app is running and the Home screen is displayed. |
-| **Main flow** | 1. Player taps **Play** on the Home screen.<br/>2. System shows the **Grid Size Select** screen.<br/>3. Player chooses a grid size (4x4 / 5x5 / 6x6).<br/>4. System shows the **Mode Select** screen for the chosen grid, displaying the current high score for both **Classic** and **Time** modes of that grid.<br/>5. Player chooses a game mode (Classic / Time).<br/>6. System initializes the board with 2 starting tiles and navigates to the Game screen. |
+| **Main flow** | 1. System displays the Home screen with **6 mode cards**: *Classic 4x4 / 5x5 / 6x6* and *Time 4x4 / 5x5 / 6x6*. Each card shows the current high score of that mode.<br/>2. Player taps one of the 6 mode cards.<br/>3. System initializes a new board of the chosen grid size with 2 starting tiles, configures the rules of the chosen mode (untimed for Classic, countdown timer for Time), and navigates to the Game screen. |
 | **Post-condition** | A new game session has started; UC-02 (Play Game) is active. |
 
 ### UC-02. Play Game (Make Move)
