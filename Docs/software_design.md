@@ -278,10 +278,10 @@ flowchart TD
     NextRow -- yes --> ForRow
     NextRow -- no --> RotBack[Rotate board back to original orientation]
     RotBack --> Compare{Did the board change?}
-    Compare -- no --> Invalid[Return MoveResult { Moved=false } — BR-07]
+    Compare -- no --> Invalid[Return result: moved is false (BR-07)]
     Compare -- yes --> Spawn[Spawn one tile<br/>(value 2 or 4)]
     Spawn --> CheckOver{Any valid move left?}
-    CheckOver -- no --> Over[IsGameOver = true — BR-09]
+    CheckOver -- no --> Over[Set game over true (BR-09)]
     CheckOver -- yes --> Done[Return MoveResult]
     Over --> Done
     Invalid --> Done
