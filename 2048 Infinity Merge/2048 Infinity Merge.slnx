@@ -4,4 +4,5 @@
   </Project>
   <Project Path="2048 Infinity Merge.AppHost/2048 Infinity Merge.AppHost.csproj" />
   <Project Path="2048 Infinity Merge.ServiceDefaults/2048 Infinity Merge.ServiceDefaults.csproj" />
+  <Project Path="2048 Infinity Merge.Tests/2048 Infinity Merge.Tests.csproj" Id="c5f1ab9d-caa3-4671-9d61-88d51e2bf0ed" />
 </Solution>
