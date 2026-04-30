@@ -268,20 +268,20 @@ The same routine works for any of the 4 directions by **rotating** the board so 
 
 ```mermaid
 flowchart TD
-    Start([Move direction d]) --> Rot[Rotate board so d → 'Left']
+    Start([Move direction d]) --> Rot["Rotate board so d points Left"]
     Rot --> ForRow[For each row]
     ForRow --> Compact[Compact: drop nulls, keep order]
-    Compact --> Pass[Walk left to right<br/>if neighbor values are equal<br/>merge into doubled value<br/>add merge value to score<br/>mark tile as merged this turn]
-    Pass --> Note[BR-05: a tile that was<br/>just merged cannot merge again<br/>in the same move]
+    Compact --> Pass["Walk left to right<br/>if neighbor values are equal<br/>merge into doubled value<br/>add merge value to score<br/>mark tile as merged this turn"]
+    Pass --> Note["BR-05: a tile that was<br/>just merged cannot merge again<br/>in the same move"]
     Note --> Pad[Pad row with nulls on the right]
     Pad --> NextRow{More rows?}
     NextRow -- yes --> ForRow
     NextRow -- no --> RotBack[Rotate board back to original orientation]
     RotBack --> Compare{Did the board change?}
-    Compare -- no --> Invalid["Return result: moved is false (BR-07)"]
-    Compare -- yes --> Spawn["Spawn one tile<br/>(value 2 or 4)"]
+    Compare -- no --> Invalid["Return result: moved is false BR-07"]
+    Compare -- yes --> Spawn["Spawn one tile<br/>value 2 or 4"]
     Spawn --> CheckOver{Any valid move left?}
-    CheckOver -- no --> Over[Set game over true (BR-09)]
+    CheckOver -- no --> Over["Set game over true BR-09"]
     CheckOver -- yes --> Done[Return MoveResult]
     Over --> Done
     Invalid --> Done
