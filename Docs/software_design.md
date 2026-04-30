@@ -271,7 +271,7 @@ flowchart TD
     Start([Move direction d]) --> Rot[Rotate board so d → 'Left']
     Rot --> ForRow[For each row]
     ForRow --> Compact[Compact: drop nulls, keep order]
-    Compact --> Pass[Walk left → right:<br/>if a[i] == a[i+1] →<br/>merge into 2*a[i],<br/>add to score,<br/>mark a[i] as 'merged this turn']
+    Compact --> Pass[Walk left to right<br/>if neighbor values are equal<br/>merge into doubled value<br/>add merge value to score<br/>mark tile as merged this turn]
     Pass --> Note[BR-05: a tile that was<br/>just merged cannot merge again<br/>in the same move]
     Note --> Pad[Pad row with nulls on the right]
     Pad --> NextRow{More rows?}
