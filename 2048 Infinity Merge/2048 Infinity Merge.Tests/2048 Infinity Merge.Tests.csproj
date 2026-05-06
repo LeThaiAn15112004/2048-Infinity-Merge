@@ -9,4 +9,8 @@
     <UseVSTest>true</UseVSTest>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\2048 Infinity Merge.Domain\2048 Infinity Merge.Domain.csproj" />
+  </ItemGroup>
+
 </Project>

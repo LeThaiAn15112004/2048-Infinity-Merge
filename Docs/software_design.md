@@ -14,6 +14,8 @@
   - [3.3. Combined Package Diagram](#33-combined-package-diagram)
 - [4. Data Design](#4-data-design)
   - [4.1. In-Memory Domain Model](#41-in-memory-domain-model)
+    - [Domain entities (table)](#domain-entities-table)
+    - [Domain enums](#domain-enums)
   - [4.2. Persistence (No Database)](#42-persistence-no-database)
 - [5. Detailed Design](#5-detailed-design)
   - [5.1. Sequence — Start New Game (UC-01)](#51-sequence--start-new-game-uc-01)
@@ -173,15 +175,37 @@ flowchart TB
 
 ### 4.1. In-Memory Domain Model
 
-| Entity | Kind | Key Fields | Notes |
-|--------|------|-----------|-------|
-| `Tile` | record struct | `Value : int`, `Id : Guid` | Value is always a power of 2 (BR-03). `Id` enables UI animation tracking across moves. |
-| `Board` | class | `Size : int`, `Cells : Tile?[,]` | `null` cell = empty. |
-| `MoveResult` | record | `Moved : bool`, `Merges : List<MergeInfo>`, `Score : int`, `IsGameOver : bool` | Returned by `GameEngine.Move(...)` (BR-07, BR-08). |
-| `GameState` | class | `Board`, `Mode : GameMode`, `Score : int`, `RemainingTime : TimeSpan?`, `IsPaused : bool` | Live state of the current session. `RemainingTime` only used for Time Mode. |
-| `HighScoreKey` | record | `Mode : GameMode`, `Size : GridSize` | Used to look up high scores per (mode × size) — BR-10. |
+> Transient structures held in RAM during an active session. They are **not** mapped to a database; only lightweight values are persisted via `Preferences` (§4.2).
 
-Enums: `GameMode { Classic, Time }`, `GridSize { S4 = 4, S5 = 5, S6 = 6 }`, `Direction { Up, Down, Left, Right }`.
+#### Domain entities (table)
+
+| Entity | Kind | Key Fields | Notes |
+|--------|------|------------|-------|
+| `Tile` | `record struct` | `Value : int`, `Id : Guid` | Value is always a power of 2 (BR-03). `Id` enables UI animation tracking across moves. |
+| `Board` | `class` | `Size : int`, `Cells : Tile?[,]` | `null` cell = empty. |
+| `MergeInfo` | `record` | `TileId : Guid`, `FromRow`, `FromCol`, `ToRow`, `ToCol`, `IsMerge : bool`, `ValueAfter : int` | One slide/merge step for UI animation; listed inside `MoveResult.Merges`. |
+| `MoveResult` | `record` | `Moved : bool`, `Merges : IReadOnlyList<MergeInfo>`, `Score : int`, `IsGameOver : bool` | Returned by `GameEngine.Move(...)` (BR-07, BR-08). `Score` is the delta gained on this move. |
+| `GameState` | `class` | `Board`, `Mode : GameMode`, `Score : int`, `RemainingTime : TimeSpan?`, `IsPaused : bool` | Live state of the current session. `RemainingTime` is used only in Time Mode. |
+| `HighScoreKey` | `record` | `Mode : GameMode`, `Size : GridSize` | Key for high-score lookup per (mode × grid size) — BR-10. |
+
+#### Domain enums
+
+Enums are **not** listed in the entity table above; they are shared primitive types used inside those entities and by `GameEngine`.
+
+**`GameMode`**
+
+- `Classic` — standard endless play.
+- `Time` — play against a countdown (`GameState.RemainingTime`).
+
+**`GridSize`**
+
+- `S4` = 4 (4×4 board)
+- `S5` = 5 (5×5 board)
+- `S6` = 6 (6×6 board)
+
+**`Direction`**
+
+- `Up`, `Down`, `Left`, `Right` — swipe / keyboard input for `GameEngine.Move(board, direction)`.
 
 ### 4.2. Persistence (No Database)
 

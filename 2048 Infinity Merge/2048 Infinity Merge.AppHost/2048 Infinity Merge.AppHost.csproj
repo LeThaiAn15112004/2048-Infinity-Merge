@@ -13,8 +13,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\2048 Infinity Merge.App\2048 Infinity Merge.App.csproj">
-      <SetTargetFramework>TargetFramework=net10.0</SetTargetFramework>
+    <!-- MAUI app has no plain net10.0 TFM; use a concrete platform TFM for Aspire reference. -->
+    <ProjectReference Include="..\2048 Infinity Merge.App\2048 Infinity Merge.App.csproj" Condition="$([MSBuild]::IsOSPlatform('windows'))">
+      <SetTargetFramework>TargetFramework=net10.0-windows10.0.19041.0</SetTargetFramework>
+    </ProjectReference>
+    <ProjectReference Include="..\2048 Infinity Merge.App\2048 Infinity Merge.App.csproj" Condition="!$([MSBuild]::IsOSPlatform('windows'))">
+      <SetTargetFramework>TargetFramework=net10.0-android</SetTargetFramework>
     </ProjectReference>
   </ItemGroup>
 

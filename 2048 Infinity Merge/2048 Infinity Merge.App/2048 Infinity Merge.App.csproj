@@ -68,6 +68,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\2048 Infinity Merge.Domain\2048 Infinity Merge.Domain.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.51" />
         <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.51" />
         <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.7" />
