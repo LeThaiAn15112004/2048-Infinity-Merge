@@ -183,9 +183,9 @@ flowchart TB
 |--------|------|------------|-------|
 | `Tile` | `record struct` | `Value : int`, `Id : Guid` | Value is always a power of 2 (BR-03). `Id` enables UI animation tracking across moves. |
 | `Board` | `class` | `Size : int`, `Cells : Tile?[,]` | `null` cell = empty. |
-| `MergeInfo` | `record` | `TileId : Guid`, `FromRow`, `FromCol`, `ToRow`, `ToCol`, `IsMerge : bool`, `ValueAfter : int` | One slide/merge step for UI animation; listed inside `MoveResult.Merges`. |
+| `MergeInfo` | `record` | `TileId : Guid`, `FromRow : int`, `FromCol : int`, `ToRow : int`, `ToCol : int`, `IsMerge : bool`, `ValueAfter : int` | One slide/merge step for UI animation; listed inside `MoveResult.Merges`. |
 | `MoveResult` | `record` | `Moved : bool`, `Merges : IReadOnlyList<MergeInfo>`, `Score : int`, `IsGameOver : bool` | Returned by `GameEngine.Move(...)` (BR-07, BR-08). `Score` is the delta gained on this move. |
-| `GameState` | `class` | `Board`, `Mode : GameMode`, `Score : int`, `RemainingTime : TimeSpan?`, `IsPaused : bool` | Live state of the current session. `RemainingTime` is used only in Time Mode. |
+| `GameState` | `class` | `Board: Board`, `Mode : GameMode`, `Score : int`, `RemainingTime : TimeSpan?`, `IsPaused : bool` | Live state of the current session. `RemainingTime` is used only in Time Mode. |
 | `HighScoreKey` | `record` | `Mode : GameMode`, `Size : GridSize` | Key for high-score lookup per (mode × grid size) — BR-10. |
 
 #### Domain enums
