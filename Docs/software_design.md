@@ -31,7 +31,7 @@
   - [6.6. `HighScoreService` (Persistence)](#66-highscoreservice-persistence)
   - [6.7. `SettingsService` (Persistence)](#67-settingsservice-persistence)
   - [6.8. `SaveGameService` (Persistence)](#68-savegameservice-persistence)
-  - [6.9. Domain contracts + External implementations](#69-domain-contracts--external-implementations)
+  - [6.9. Domain contracts and External implementations](#69-domain-contracts-and-external-implementations)
   - [6.10. `ITimer` & `MauiTimer`](#610-itimer--mauitimer-domain-contract--external-implementation)
   - [6.11. `IRandom`, `IIapService`, `IAdsService`](#611-irandom-iiapservice-iadsservice-domain-contracts--external-implementations)
   - [6.12. UI Components (Presentation)](#612-ui-components-presentation)
@@ -433,13 +433,44 @@ sequenceDiagram
 | **Depends on** | `IStorage` |
 | **Notes** | Keeps resume-flow persistence outside Domain and Application orchestration. |
 
-### 6.9. Domain contracts + External implementations
+### 6.9. Domain contracts and External implementations
 
-| Contract / Impl | Detail |
-|--------|--------|
-| **Domain contract** | `IStorage`: `T? Get<T>(string key)`<br/>`void Set<T>(string key, T value)`<br/>`void Remove(string key)` |
-| **External implementation** | `PreferencesStorage` — wraps `Microsoft.Maui.Storage.Preferences`. |
-| **Notes** | Business-facing interfaces stay in **Domain**; platform/SDK-specific code stays in **External**. |
+This section explains how **ports** (interfaces in **Domain**) connect to **adapters** (concrete classes in **External**).
+
+#### Why split contract vs implementation?
+
+- **Domain** defines *what* the game needs from the outside world (read/write key-value storage, random numbers, timers, IAP/ads), without referencing MAUI or vendor SDKs.
+- **External** provides *how* those needs are satisfied on each platform (e.g. `Preferences`, OS timers, ad SDKs).
+- **Persistence** services (`HighScoreService`, `SettingsService`, `SaveGameService`) depend on **`IStorage`** — they call the interface; `PreferencesStorage` supplies the real backing store.
+
+Dependency direction: **Persistence → `IStorage` (Domain)** and **External → `IStorage` (implements)**. Domain does **not** reference External.
+
+#### `IStorage` (Domain contract)
+
+`IStorage` is the abstraction for **local key/value persistence** (high scores, settings, save-game payloads).
+
+| Member | Meaning |
+|--------|---------|
+| `T? Get<T>(string key)` | Reads a value for `key`. Returns **`null`** if the key has never been written or cannot be deserialized. **`T?` is the stored value**, not another storage object. |
+| `void Set<T>(string key, T value)` | Writes or overwrites the value for `key`. |
+| `void Remove(string key)` | Deletes `key` if present. |
+
+**External implementation (reference):**
+
+| Class | Role |
+|-------|------|
+| `PreferencesStorage` | Implements `IStorage` using **`Microsoft.Maui.Storage.Preferences`** (OS-backed key/value on Android / iOS / macOS / Windows). |
+
+**Who uses `IStorage`:** Persistence layer services listed in §6.6–§6.8 inject `IStorage`; they choose concrete keys and types (`int`, `bool`, `string`, serialized board JSON, etc.) as described in §4.2.
+
+**Swap:** The implementation behind `IStorage` may later change (e.g. SQLite) without changing Domain contracts or Application orchestration — only DI registration and the External adapter change.
+
+#### Other Domain contracts (see following subsections)
+
+| Contract (Domain) | Typical External implementation | Detailed spec |
+|-------------------|----------------------------------|---------------|
+| `ITimer` | `MauiTimer` (or platform timer wrapper) | §6.10 |
+| `IRandom`, `IIapService`, `IAdsService` | `SystemRandom`, store IAP adapter, ad-network adapter | §6.11 |
 
 ### 6.10. `ITimer` & `MauiTimer` (Domain contract + External implementation)
 

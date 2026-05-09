@@ -1,11 +1,13 @@
 <Solution>
-  <Project Path="2048 Infinity Merge.Application/2048 Infinity Merge.Application.csproj" Id="6e1a3dbd-fb5e-4d71-9cf4-f4ef5094a715" />
-  <Project Path="2048 Infinity Merge.Domain/2048 Infinity Merge.Domain.csproj" />
   <Project Path="2048 Infinity Merge.App/2048 Infinity Merge.App.csproj">
     <Deploy Solution="Debug|*" />
   </Project>
   <Project Path="2048 Infinity Merge.AppHost/2048 Infinity Merge.AppHost.csproj" />
+  <Project Path="2048 Infinity Merge.Application/2048 Infinity Merge.Application.csproj" Id="6e1a3dbd-fb5e-4d71-9cf4-f4ef5094a715" />
+  <Project Path="2048 Infinity Merge.Domain/2048 Infinity Merge.Domain.csproj" />
+  <Project Path="2048 Infinity Merge.External/2048 Infinity Merge.External.csproj" Id="0abdd3b5-aaf0-4cad-8076-1824f6bafe74" />
   <Project Path="2048 Infinity Merge.Infrastructure/2048 Infinity Merge.Infrastructure.csproj" Id="9aa62bed-390e-4390-8aa7-c38108e664e3" />
+  <Project Path="2048 Infinity Merge.Persistence/2048 Infinity Merge.Persistence.csproj" Id="ca860c5b-1c67-4bb6-bcca-675208c065a6" />
   <Project Path="2048 Infinity Merge.ServiceDefaults/2048 Infinity Merge.ServiceDefaults.csproj" />
   <Project Path="2048 Infinity Merge.Tests/2048 Infinity Merge.Tests.csproj" Id="c5f1ab9d-caa3-4671-9d61-88d51e2bf0ed" />
 </Solution>
