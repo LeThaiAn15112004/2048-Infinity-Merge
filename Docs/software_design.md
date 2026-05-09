@@ -474,18 +474,64 @@ Dependency direction: **Persistence → `IStorage` (Domain)** and **External →
 
 ### 6.10. `ITimer` & `MauiTimer` (Domain contract + External implementation)
 
-| Aspect | Detail |
-|--------|--------|
-| **Interface** | `void Start(TimeSpan duration)` / `void Pause()` / `void Resume()` / `void Stop()`<br/>`event Action<TimeSpan> Tick`<br/>`event Action Elapsed` |
-| **Used by** | `GameSessionService` for **Time Mode** countdown. Pausing the game also pauses the timer (BR-12). |
+`ITimer` abstracts a **countdown** used in **Time Mode**. `GameSessionService` owns the timer instance: it starts when a timed session begins, and **game pause must pause the timer** as well (BR-12). The UI subscribes to ticks to refresh the visible countdown.
 
-### 6.11. `IRandom`, `IIapService`, `IAdsService` (Domain contracts) + External implementations
+#### `ITimer` — members
 
-| Aspect | Detail |
-|--------|--------|
-| **Contracts in Domain** | `IRandom`, `IIapService`, `IAdsService` are business-facing abstractions consumed by Application/Domain workflows. |
-| **Implementations in External** | `SystemRandom`, store-specific IAP adapter, and ad-network adapter wrap platform or third-party SDKs. |
-| **Notes** | Keeps Domain independent from infrastructure details and vendor SDKs. |
+| Member | Behaviour |
+|--------|-----------|
+| `void Start(TimeSpan duration)` | Starts (or **restarts**) the countdown from the given total duration. Any previous run is effectively replaced: remaining time becomes `duration`, periodic ticks resume according to the implementation (see `Tick`). Idempotent expectation: calling `Start` again resets the clock for a new round. |
+| `void Pause()` | Freezes the countdown: **no further `Tick` events** until `Resume`. Internally the implementation stores **remaining time** so `Resume` continues where the player left off (does not jump forward). |
+| `void Resume()` | Continues from the remaining time saved at `Pause`. If the timer was not paused or was stopped, behaviour is undefined unless documented by the adapter — reference impl should no-op or align with “only valid after Pause”. |
+| `void Stop()` | Ends the countdown: unsubscribed semantics — **no more `Tick`**, **`Elapsed` must not fire** after stop unless `Start` is called again. Used when quitting to home, ending the session, or switching modes. |
+| `event Action<TimeSpan> Tick` | Raised on a **fixed cadence** while the timer is running and not paused (e.g. once per second). The argument is the **remaining time** until zero (`TimeSpan`), so the UI can bind directly without recomputing. Implementations should avoid flooding (reasonable minimum interval, aligned with UI refresh needs). |
+| `event Action<TimeSpan> Elapsed` | Raised **once** when remaining time reaches **zero** (typically with `TimeSpan.Zero` or equivalent). Signals Time Mode end from the timer’s perspective; `GameSessionService` then applies game-over or mode-specific rules. Must not repeat until after the next `Start`. |
+
+#### `MauiTimer` (External)
+
+| Role |
+|------|
+| Implements `ITimer` using MAUI / platform scheduling primitives (e.g. `DispatcherTimer`, platform timers, or `PeriodicTimer` bridged to the UI thread so Razor bindings stay safe). |
+
+### 6.11. `IRandom`, `IIapService`, `IAdsService` (Domain contracts + External implementations)
+
+These interfaces are **business-facing ports**: Domain/Application describe *what* randomness and monetisation flows need; **External** supplies adapters (`SystemRandom`, store IAP, ad SDK wrappers). The tables below are the **intended contract** — keep signatures in sync when adding the corresponding `*.cs` files under `Domain/Contracts`.
+
+#### `IRandom`
+
+Used by **`GameEngine.SpawnRandomTile`** (and any future stochastic rule): choose among empty cells and implement **spawn weights** (e.g. 90% value `2`, 10% value `4`).
+
+| Member | Behaviour |
+|--------|-----------|
+| `double NextDouble()` | Returns a pseudo-random **double in \[0, 1)** (uniform). Used for spawn probability thresholds so domain logic stays readable (compare against constants rather than magic integers). |
+| `int Next(int maxExclusive)` | Returns a pseudo-random **integer in \[0, maxExclusive)** (uniform). Used to pick **which empty cell** receives the new tile when there are multiple vacant indices. **`maxExclusive` must be positive**; callers pass `emptyCellCount`. |
+
+**External implementation:** `SystemRandom` — thin wrapper over **`System.Random`** (`Random.Shared` or an injected instance for test doubles).
+
+#### `IIapService`
+
+Owns **store-backed entitlement** for purchases defined in product scope (e.g. **Remove Ads**). Application/UI call these APIs; Domain stays unaware of Google Play / App Store types.
+
+| Member | Behaviour |
+|--------|-----------|
+| `bool AdsRemoved { get; }` | **Cached entitlement flag**: `true` if the user has a valid **remove-ads** purchase (or equivalent product). Updated after successful purchase or after **`RestorePurchasesAsync`**. Persistence of raw receipts may live in External, but this property is what the rest of the app checks before showing ads. |
+| `Task PurchaseRemoveAdsAsync(CancellationToken cancellationToken = default)` | Starts the **platform purchase UI** for the remove-ads product. Completes when the dialog flow finishes: implementation should surface success/failure via completion or documented exceptions; on success, sets entitlement so **`AdsRemoved`** becomes `true`. Does nothing redundant if already entitled (typical: fast-path success). |
+| `Task RestorePurchasesAsync(CancellationToken cancellationToken = default)` | Asks the store to **re-send purchased SKUs** (fresh install, reinstall, new device). Updates **`AdsRemoved`** when a matching entitlement is found. |
+
+**External implementation:** Store-specific adapter classes (e.g. wrapping billing APIs per platform), registered in DI composition root — **not** referenced by Domain.
+
+#### `IAdsService`
+
+Controls **when** and **how** ads appear (banner, interstitial, rewarded — whatever is in scope). Must respect **`IIapService.AdsRemoved`** and offline/safety policies inside the adapter.
+
+| Member | Behaviour |
+|--------|-----------|
+| `bool ShouldShowAds { get; }` | **`false`** when ads must not run — e.g. user purchased remove-ads, parental/policy gate, or SDK unavailable. UI (`BannerAds.razor`, etc.) and Application consult this before loading creatives. |
+| `void PrepareInterstitial()` | **Warm up** ad inventory early (e.g. after game over is likely) so `ShowInterstitial` has creative ready; implementations may no-op if interstitials are out of scope. |
+| `void ShowInterstitial(Action? onDismissed = null)` | Shows a **full-screen interstitial** when ready; invokes **`onDismissed`** after the user closes the ad or if show fails/skipped (exact guarantees documented per adapter — typically fire once per logical show attempt). |
+| `Task<bool> ShowRewardedVideoAsync(CancellationToken cancellationToken = default)` | Optional pattern for **rewarded** placement: returns **`true`** only if the user **fully watched** the video and the SDK grants reward; **`false`** if skipped, failed, or unavailable. Application maps result to in-game benefit if needed. |
+
+**External implementation:** Ad-network SDK wrapper(s); keeps Domain free of vendor namespaces.
 
 ### 6.12. UI Components (Presentation)
 

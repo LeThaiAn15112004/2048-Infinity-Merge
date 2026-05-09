@@ -5,4 +5,6 @@ public interface ITimer{
     void Pause();
     void Resume();
     void Stop();
+    event Action<TimeSpan> Tick;
+    event Action<TimeSpan> Elapsed;
 }
