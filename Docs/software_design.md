@@ -23,6 +23,18 @@
   - [5.3. Activity — Slide & Merge Algorithm](#53-activity--slide--merge-algorithm)
   - [5.4. Sequence — Save High Score (Game Over)](#54-sequence--save-high-score-game-over)
 - [6. Class Specification](#6-class-specification)
+  - [6.1. `GameEngine` (Domain)](#61-gameengine-domain)
+  - [6.2. `Board` (Domain)](#62-board-domain)
+  - [6.3. `Tile` (Domain)](#63-tile-domain)
+  - [6.4. `MoveResult` (Domain)](#64-moveresult-domain)
+  - [6.5. `GameSessionService` (Application)](#65-gamesessionservice-application)
+  - [6.6. `HighScoreService` (Persistence)](#66-highscoreservice-persistence)
+  - [6.7. `SettingsService` (Persistence)](#67-settingsservice-persistence)
+  - [6.8. `SaveGameService` (Persistence)](#68-savegameservice-persistence)
+  - [6.9. Domain contracts + External implementations](#69-domain-contracts--external-implementations)
+  - [6.10. `ITimer` & `MauiTimer`](#610-itimer--mauitimer-domain-contract--external-implementation)
+  - [6.11. `IRandom`, `IIapService`, `IAdsService`](#611-irandom-iiapservice-iadsservice-domain-contracts--external-implementations)
+  - [6.12. UI Components (Presentation)](#612-ui-components-presentation)
 
 ---
 
