@@ -21,9 +21,15 @@ It extends classic 2048 with multiple grid sizes and game modes while keeping al
 - **Framework:** .NET MAUI Blazor Hybrid (.NET 10)
 - **Languages:** C#, Razor, HTML, CSS
 - **Platforms:** Windows, Android, iOS, macOS (Mac Catalyst)
-- **Persistence:** local device storage (Preferences)
+- **Persistence:** local device storage for high scores, settings, and save game state
 
 ## Run
+
+Clone from GitHub:
+```bash
+git clone <repo-url>
+cd 2048-Infinity-Merge
+```
 
 From repository root:
 
@@ -40,7 +46,7 @@ dotnet watch run --project "2048 Infinity Merge/2048 Infinity Merge.App/2048 Inf
 
 ## Scope (Current Version)
 
-- In scope: core 2048 gameplay, local high scores/settings, cross-platform client.
+- In scope: core 2048 gameplay, local high scores/settings/save game state, cross-platform client.
 - Out of scope: online multiplayer, cloud sync, global leaderboard, user accounts.
 
 ---

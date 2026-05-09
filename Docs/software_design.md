@@ -10,7 +10,7 @@
   - [2.4. Deployment View](#24-deployment-view)
 - [3. Package Diagram](#3-package-diagram)
   - [3.1. Frontend (Presentation Layer)](#31-frontend-presentation-layer)
-  - [3.2. Backend (Application & Domain Layer)](#32-backend-application--domain-layer)
+  - [3.2. Backend (Application, Domain, Persistence, External)](#32-backend-application-domain-persistence-external)
   - [3.3. Combined Package Diagram](#33-combined-package-diagram)
 - [4. Data Design](#4-data-design)
   - [4.1. In-Memory Domain Model](#41-in-memory-domain-model)
@@ -52,9 +52,10 @@ The application follows a **layered (Clean-Architecture-inspired)** style, combi
 | Layer | Responsibility | Depends on |
 |-------|----------------|-----------|
 | **Presentation** *(FE)* | Razor components, layouts, CSS, JS interop. Renders state and dispatches user actions. | Application |
-| **Application** *(BE)* | Use-case orchestration, services (`GameSessionService`, `HighScoreService`, `SettingsService`). Holds in-memory state. | Domain, Infrastructure |
+| **Application** *(BE)* | Use-case orchestration and game flow (`GameSessionService`). Holds in-memory state and raises UI events. | Domain, Persistence, External |
 | **Domain** *(BE)* | Pure game rules: `Board`, `Tile`, `GameEngine`, `MoveResult`, enums (`GameMode`, `GridSize`, `Direction`). No I/O. | — |
-| **Infrastructure** *(BE)* | Adapters to platform: `IStorage` implementation backed by **MAUI `Preferences`**, timer wrapper for Time Mode, RNG wrapper. | Domain |
+| **Persistence** *(BE)* | Business persistence services/repositories for high score, settings, and save game state. Owns key schema and serialization. | Domain contracts, External adapters |
+| **External** *(BE)* | Adapters to platform / third-party SDKs: persistence implementation, timer implementation, random implementation, IAP and ads providers. | Domain contracts |
 
 > **Note on "FE" vs "BE":** because the app is a single MAUI Blazor Hybrid client (no network split), *FE* and *BE* in this document refer to **logical layers inside the same process**, not separate deployable services.
 
@@ -69,21 +70,27 @@ flowchart TB
     end
 
     subgraph Application["Application Layer (BE)"]
-        AppSvc["Services<br/>(GameSessionService, HighScoreService, SettingsService)"]
+        AppSvc["Services<br/>(GameSessionService)"]
     end
 
     subgraph Domain["Domain Layer (BE)"]
         DomainCore["Game Engine<br/>(GameEngine, Board, Tile, MoveResult, enums)"]
     end
 
-    subgraph Infrastructure["Infrastructure Layer (BE)"]
-        Infra["Adapters<br/>(IStorage → MAUI Preferences,<br/>ITimer, IRandom)"]
+    subgraph Persistence["Persistence Layer (BE)"]
+        Persist["Persistence services<br/>(HighScoreService, SettingsService,<br/>SaveGameService)"]
+    end
+
+    subgraph External["External Layer (BE)"]
+        Infra["Adapters<br/>(IStorage -> MAUI Preferences,<br/>ITimer, IRandom,<br/>IIapService, IAdsService)"]
     end
 
     Presentation --> Application
     Application --> Domain
-    Application --> Infrastructure
-    Infrastructure --> Domain
+    Application --> Persistence
+    Persistence --> Domain
+    Persistence --> External
+    Application --> External
 ```
 
 ### 2.3. Technology Stack
@@ -136,19 +143,22 @@ flowchart TB
     Items -. "use CSS" .-> WwwRoot
 ```
 
-### 3.2. Backend (Application & Domain Layer)
+### 3.2. Backend (Application, Domain, Persistence, External)
 
 ```mermaid
 flowchart TB
     subgraph BE["📦 InfinityMergeApp.Core (BE — logical)"]
-        AppPkg["📦 Application<br/>• GameSessionService<br/>• HighScoreService<br/>• SettingsService"]
-        DomainPkg["📦 Domain<br/>• GameEngine<br/>• Board, Tile<br/>• MoveResult<br/>• GameMode, GridSize, Direction (enums)"]
-        InfraPkg["📦 Infrastructure<br/>• IStorage / PreferencesStorage<br/>• ITimer / MauiTimer<br/>• IRandom / SystemRandom"]
+        AppPkg["📦 Application<br/>• GameSessionService"]
+        DomainPkg["📦 Domain<br/>• GameEngine<br/>• Board, Tile<br/>• MoveResult<br/>• GameMode, GridSize, Direction (enums)<br/>• Contracts: IStorage, ITimer, IRandom,<br/>IIapService, IAdsService"]
+        PersistPkg["📦 Persistence<br/>• HighScoreService<br/>• SettingsService<br/>• SaveGameService"]
+        InfraPkg["📦 External<br/>• PreferencesStorage<br/>• MauiTimer<br/>• SystemRandom<br/>• IapService (store SDK)<br/>• AdsService (ad SDK)"]
     end
 
     AppPkg --> DomainPkg
+    AppPkg --> PersistPkg
     AppPkg --> InfraPkg
-    InfraPkg --> DomainPkg
+    PersistPkg --> DomainPkg
+    PersistPkg --> InfraPkg
 ```
 
 ### 3.3. Combined Package Diagram
@@ -157,14 +167,17 @@ flowchart TB
 flowchart TB
     subgraph App["InfinityMergeApp"]
         FE["📦 Components (FE)<br/>Pages • Items • Layout • wwwroot"]
-        AppL["📦 Application<br/>GameSessionService • HighScoreService • SettingsService"]
+        AppL["📦 Application<br/>GameSessionService"]
         Dom["📦 Domain<br/>GameEngine • Board • Tile • MoveResult • Enums"]
-        Inf["📦 Infrastructure<br/>PreferencesStorage • Timer • Random"]
+        Per["📦 Persistence<br/>HighScoreService • SettingsService • SaveGameService"]
+        Inf["📦 External<br/>PreferencesStorage • Timer • Random • IAP • Ads"]
     end
     FE --> AppL
     AppL --> Dom
+    AppL --> Per
+    Per --> Dom
+    Per --> Inf
     AppL --> Inf
-    Inf --> Dom
 ```
 
 ---
@@ -224,11 +237,16 @@ All persistent data is stored via **`Microsoft.Maui.Storage.Preferences`** — a
 | `settings.sound` | `bool` | Sound on/off. |
 | `settings.theme` | `string` | Selected theme ID. |
 | `settings.timeMode.duration` | `int` (seconds) | Default round duration for Time Mode. |
+| `savegame.mode` | `string` | Last active game mode. |
+| `savegame.size` | `int` | Last active grid size. |
+| `savegame.score` | `int` | Last in-progress score. |
+| `savegame.board` | `string` (JSON) | Serialized board cells for resume flow. |
+| `savegame.remainingTime` | `int?` (seconds) | Remaining time for Time Mode resume. |
 
 **Why no DB:**
 - Total data footprint is < 1 KB and only key-value access pattern.
 - `Preferences` is built into MAUI on every target platform — no extra dependency, no schema migration.
-- If richer needs arise later (replays, achievements), the `IStorage` interface can be re-implemented with **SQLite** (`sqlite-net-pcl`) without touching the Application or Domain layer.
+- If richer needs arise later (replays, achievements), the `IStorage` implementation can be swapped (e.g., **SQLite** via `sqlite-net-pcl`) without touching Application use-cases or Domain rules.
 
 ---
 
@@ -376,7 +394,7 @@ sequenceDiagram
 | **Public API** | `event Action StateChanged`<br/>`GameState Current { get; }`<br/>`void StartNewGame(GameMode mode, GridSize size)`<br/>`void Move(Direction direction)`<br/>`void Pause()` / `void Resume()`<br/>`void QuitToHome()` |
 | **Implements** | UC-01, UC-02, UC-03 |
 
-### 6.6. `HighScoreService` (Application)
+### 6.6. `HighScoreService` (Persistence)
 
 | Aspect | Detail |
 |--------|--------|
@@ -385,7 +403,7 @@ sequenceDiagram
 | **Depends on** | `IStorage` |
 | **Implements** | BR-10 |
 
-### 6.7. `SettingsService` (Application)
+### 6.7. `SettingsService` (Persistence)
 
 | Aspect | Detail |
 |--------|--------|
@@ -394,22 +412,39 @@ sequenceDiagram
 | **Depends on** | `IStorage` |
 | **Implements** | UC-04 |
 
-### 6.8. `IStorage` & `PreferencesStorage` (Infrastructure)
+### 6.8. `SaveGameService` (Persistence)
 
 | Aspect | Detail |
 |--------|--------|
-| **Interface** | `T? Get<T>(string key)`<br/>`void Set<T>(string key, T value)`<br/>`void Remove(string key)` |
-| **Implementation** | `PreferencesStorage` — wraps `Microsoft.Maui.Storage.Preferences`. |
-| **Notes** | Abstracted so that a future SQLite-backed implementation can swap in transparently. |
+| **Responsibility** | Save and restore in-progress game state (board, mode, score, remaining time). |
+| **Public API** | `void Save(GameState state)`<br/>`GameState? TryRestore()`<br/>`void Clear()` |
+| **Depends on** | `IStorage` |
+| **Notes** | Keeps resume-flow persistence outside Domain and Application orchestration. |
 
-### 6.9. `ITimer` & `MauiTimer` (Infrastructure)
+### 6.9. Domain contracts + External implementations
+
+| Contract / Impl | Detail |
+|--------|--------|
+| **Domain contract** | `IStorage`: `T? Get<T>(string key)`<br/>`void Set<T>(string key, T value)`<br/>`void Remove(string key)` |
+| **External implementation** | `PreferencesStorage` — wraps `Microsoft.Maui.Storage.Preferences`. |
+| **Notes** | Business-facing interfaces stay in **Domain**; platform/SDK-specific code stays in **External**. |
+
+### 6.10. `ITimer` & `MauiTimer` (Domain contract + External implementation)
 
 | Aspect | Detail |
 |--------|--------|
 | **Interface** | `void Start(TimeSpan duration)` / `void Pause()` / `void Resume()` / `void Stop()`<br/>`event Action<TimeSpan> Tick`<br/>`event Action Elapsed` |
 | **Used by** | `GameSessionService` for **Time Mode** countdown. Pausing the game also pauses the timer (BR-12). |
 
-### 6.10. UI Components (Presentation)
+### 6.11. `IRandom`, `IIapService`, `IAdsService` (Domain contracts) + External implementations
+
+| Aspect | Detail |
+|--------|--------|
+| **Contracts in Domain** | `IRandom`, `IIapService`, `IAdsService` are business-facing abstractions consumed by Application/Domain workflows. |
+| **Implementations in External** | `SystemRandom`, store-specific IAP adapter, and ad-network adapter wrap platform or third-party SDKs. |
+| **Notes** | Keeps Domain independent from infrastructure details and vendor SDKs. |
+
+### 6.12. UI Components (Presentation)
 
 | Component | Purpose | Key bindings |
 |-----------|---------|--------------|

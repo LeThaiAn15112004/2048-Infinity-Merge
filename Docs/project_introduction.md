@@ -35,7 +35,7 @@ The goal of this project is not only to faithfully recreate the original 2048 ex
 - Faithfully reproduce the classic 2048 gameplay based on powers of 2.
 - Extend the game with multiple **grid sizes** and multiple **game modes** to increase replayability.
 - Provide a modern, smooth and responsive UI that supports both touch input (mobile) and keyboard input (desktop).
-- Persist user progress and high scores **locally** on the device.
+- Persist user progress **locally** on the device, including high scores, settings, and resumable game state.
 
 ## 4. Gameplay
 
@@ -79,7 +79,7 @@ The goal of this project is not only to faithfully recreate the original 2048 ex
 - **Framework:** .NET MAUI Blazor Hybrid (.NET 10).
 - **Languages:** C#, Razor, HTML, CSS, JavaScript.
 - **Supported platforms:** Windows, Android, iOS, macOS (Mac Catalyst).
-- **Storage:** Local storage on the device for settings and high scores.
+- **Storage:** Local storage on the device for high scores, settings, and save game state.
 
 ## 8. Scope
 
