@@ -32,7 +32,7 @@
   - [6.7. `SettingsService` (Persistence)](#67-settingsservice-persistence)
   - [6.8. `SaveGameService` (Persistence)](#68-savegameservice-persistence)
   - [6.9. Domain contracts and External implementations](#69-domain-contracts-and-external-implementations)
-  - [6.10. `ITimer` & `MauiTimer`](#610-itimer--mauitimer-domain-contract--external-implementation)
+  - [6.10. `IGameTimer` & `GameTimer`](#610-igametimer--gametimer-domain-contract--external-implementation)
   - [6.11. `IRandom`, `IIapService`, `IAdsService`](#611-irandom-iiapservice-iadsservice-domain-contracts--external-implementations)
   - [6.12. UI Components (Presentation)](#612-ui-components-presentation)
 
@@ -94,7 +94,7 @@ flowchart TB
     end
 
     subgraph External["External Layer (BE)"]
-        Infra["Adapters<br/>(IStorage -> MAUI Preferences,<br/>ITimer, IRandom,<br/>IIapService, IAdsService)"]
+        Infra["Adapters<br/>(IStorage -> MAUI Preferences,<br/>IGameTimer, IRandom,<br/>IIapService, IAdsService)"]
     end
 
     Presentation --> Application
@@ -161,9 +161,9 @@ flowchart TB
 flowchart TB
     subgraph BE["📦 InfinityMergeApp.Core (BE — logical)"]
         AppPkg["📦 Application<br/>• GameSessionService"]
-        DomainPkg["📦 Domain<br/>• GameEngine<br/>• Board, Tile<br/>• MoveResult<br/>• GameMode, GridSize, Direction (enums)<br/>• Contracts: IStorage, ITimer, IRandom,<br/>IIapService, IAdsService"]
+        DomainPkg["📦 Domain<br/>• GameEngine<br/>• Board, Tile<br/>• MoveResult<br/>• GameMode, GridSize, Direction (enums)<br/>• Contracts: IStorage, IGameTimer, IRandom,<br/>IIapService, IAdsService"]
         PersistPkg["📦 Persistence<br/>• HighScoreService<br/>• SettingsService<br/>• SaveGameService"]
-        InfraPkg["📦 External<br/>• PreferencesStorage<br/>• MauiTimer<br/>• SystemRandom<br/>• IapService (store SDK)<br/>• AdsService (ad SDK)"]
+        InfraPkg["📦 External<br/>• PreferencesStorage<br/>• GameTimer<br/>• SystemRandom<br/>• IapService (store SDK)<br/>• AdsService (ad SDK)"]
     end
 
     AppPkg --> DomainPkg
@@ -401,7 +401,7 @@ sequenceDiagram
 
 | Aspect | Detail |
 |--------|--------|
-| **Responsibility** | Owns the live `GameState`, drives the game loop, raises `StateChanged` for the UI. Coordinates `GameEngine`, `ITimer`, `HighScoreService`. |
+| **Responsibility** | Owns the live `GameState`, drives the game loop, raises `StateChanged` for the UI. Coordinates `GameEngine`, `IGameTimer`, `HighScoreService`. |
 | **Lifetime** | Singleton (registered in `MauiProgram`). |
 | **Public API** | `event Action StateChanged`<br/>`GameState Current { get; }`<br/>`void StartNewGame(GameMode mode, GridSize size)`<br/>`void Move(Direction direction)`<br/>`void Pause()` / `void Resume()`<br/>`void QuitToHome()` |
 | **Implements** | UC-01, UC-02, UC-03 |
@@ -469,14 +469,14 @@ Dependency direction: **Persistence → `IStorage` (Domain)** and **External →
 
 | Contract (Domain) | Typical External implementation | Detailed spec |
 |-------------------|----------------------------------|---------------|
-| `ITimer` | `MauiTimer` (or platform timer wrapper) | §6.10 |
+| `IGameTimer` | `GameTimer` (or platform timer wrapper) | §6.10 |
 | `IRandom`, `IIapService`, `IAdsService` | `SystemRandom`, store IAP adapter, ad-network adapter | §6.11 |
 
-### 6.10. `ITimer` & `MauiTimer` (Domain contract + External implementation)
+### 6.10. `IGameTimer` & `GameTimer` (Domain contract + External implementation)
 
-`ITimer` abstracts a **countdown** used in **Time Mode**. `GameSessionService` owns the timer instance: it starts when a timed session begins, and **game pause must pause the timer** as well (BR-12). The UI subscribes to ticks to refresh the visible countdown.
+`IGameTimer` abstracts a **countdown** used in **Time Mode**. `GameSessionService` owns the timer instance: it starts when a timed session begins, and **game pause must pause the timer** as well (BR-12). The UI subscribes to ticks to refresh the visible countdown.
 
-#### `ITimer` — members
+#### `IGameTimer` — members
 
 | Member | Behaviour |
 |--------|-----------|
@@ -487,11 +487,11 @@ Dependency direction: **Persistence → `IStorage` (Domain)** and **External →
 | `event Action<TimeSpan> Tick` | Raised on a **fixed cadence** while the timer is running and not paused (e.g. once per second). The argument is the **remaining time** until zero (`TimeSpan`), so the UI can bind directly without recomputing. Implementations should avoid flooding (reasonable minimum interval, aligned with UI refresh needs). |
 | `event Action<TimeSpan> Elapsed` | Raised **once** when remaining time reaches **zero** (typically with `TimeSpan.Zero` or equivalent). Signals Time Mode end from the timer’s perspective; `GameSessionService` then applies game-over or mode-specific rules. Must not repeat until after the next `Start`. |
 
-#### `MauiTimer` (External)
+#### `GameTimer` (External)
 
 | Role |
 |------|
-| Implements `ITimer` using MAUI / platform scheduling primitives (e.g. `DispatcherTimer`, platform timers, or `PeriodicTimer` bridged to the UI thread so Razor bindings stay safe). |
+| Implements `IGameTimer` using MAUI / platform scheduling primitives (e.g. `DispatcherTimer`, platform timers, or `PeriodicTimer` bridged to the UI thread so Razor bindings stay safe). |
 
 ### 6.11. `IRandom`, `IIapService`, `IAdsService` (Domain contracts + External implementations)
 

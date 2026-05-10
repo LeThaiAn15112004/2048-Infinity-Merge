@@ -1,4 +1,4 @@
-namespace _2048_Infinity_Merge.Domain.Contracts;
+namespace _2048_Infinity_Merge.Domain.Interfaces;
 
 public interface IStorage
 {
