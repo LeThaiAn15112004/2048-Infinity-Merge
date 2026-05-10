@@ -12,9 +12,9 @@ public interface IGameTimer{
 
     void Stop();
 
-    event Action<TimeSpan> Tick;
+    event Action<TimeSpan>? Tick;
 
-    event Action<TimeSpan> Elapsed;
+    event Action<TimeSpan>? Elapsed;
 
 }
 

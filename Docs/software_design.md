@@ -33,7 +33,7 @@
   - [6.8. `SaveGameService` (Persistence)](#68-savegameservice-persistence)
   - [6.9. Domain contracts and External implementations](#69-domain-contracts-and-external-implementations)
   - [6.10. `IGameTimer` & `GameTimer`](#610-igametimer--gametimer-domain-contract--external-implementation)
-  - [6.11. `IRandom`, `IIapService`, `IAdsService`](#611-irandom-iiapservice-iadsservice-domain-contracts--external-implementations)
+  - [6.11. `ISystemRandom`, `IIapService`, `IAdsService`](#611-isystemrandom-iiapservice-iadsservice-domain-contracts--external-implementations)
   - [6.12. UI Components (Presentation)](#612-ui-components-presentation)
 
 ---
@@ -94,7 +94,7 @@ flowchart TB
     end
 
     subgraph External["External Layer (BE)"]
-        Infra["Adapters<br/>(IStorage -> MAUI Preferences,<br/>IGameTimer, IRandom,<br/>IIapService, IAdsService)"]
+        Infra["Adapters<br/>(IStorage -> MAUI Preferences,<br/>IGameTimer, ISystemRandom,<br/>IIapService, IAdsService)"]
     end
 
     Presentation --> Application
@@ -161,7 +161,7 @@ flowchart TB
 flowchart TB
     subgraph BE["📦 InfinityMergeApp.Core (BE — logical)"]
         AppPkg["📦 Application<br/>• GameSessionService"]
-        DomainPkg["📦 Domain<br/>• GameEngine<br/>• Board, Tile<br/>• MoveResult<br/>• GameMode, GridSize, Direction (enums)<br/>• Contracts: IStorage, IGameTimer, IRandom,<br/>IIapService, IAdsService"]
+        DomainPkg["📦 Domain<br/>• GameEngine<br/>• Board, Tile<br/>• MoveResult<br/>• GameMode, GridSize, Direction (enums)<br/>• Contracts: IStorage, IGameTimer, ISystemRandom,<br/>IIapService, IAdsService"]
         PersistPkg["📦 Persistence<br/>• HighScoreService<br/>• SettingsService<br/>• SaveGameService"]
         InfraPkg["📦 External<br/>• PreferencesStorage<br/>• GameTimer<br/>• SystemRandom<br/>• IapService (store SDK)<br/>• AdsService (ad SDK)"]
     end
@@ -372,7 +372,7 @@ sequenceDiagram
 | Aspect | Detail |
 |--------|--------|
 | **Responsibility** | Pure game rules: slide, merge, spawn, game-over detection. **No state, no I/O.** |
-| **Public methods** | `Board CreateBoard(GridSize size)`<br/>`Board SpawnRandomTile(Board board, IRandom rng)`<br/>`MoveResult Move(Board board, Direction direction)`<br/>`bool HasAnyValidMove(Board board)` |
+| **Public methods** | `Board CreateBoard(GridSize size)`<br/>`Board SpawnRandomTile(Board board, ISystemRandom rng)`<br/>`MoveResult Move(Board board, Direction direction)`<br/>`bool HasAnyValidMove(Board board)` |
 | **Implements** | BR-01, BR-02, BR-03, BR-04, BR-05, BR-06, BR-07, BR-08, BR-09 |
 | **Notes** | Stateless and side-effect-free → trivially unit-testable. |
 
@@ -470,7 +470,7 @@ Dependency direction: **Persistence → `IStorage` (Domain)** and **External →
 | Contract (Domain) | Typical External implementation | Detailed spec |
 |-------------------|----------------------------------|---------------|
 | `IGameTimer` | `GameTimer` (or platform timer wrapper) | §6.10 |
-| `IRandom`, `IIapService`, `IAdsService` | `SystemRandom`, store IAP adapter, ad-network adapter | §6.11 |
+| `ISystemRandom`, `IIapService`, `IAdsService` | `SystemRandom`, store IAP adapter, ad-network adapter | §6.11 |
 
 ### 6.10. `IGameTimer` & `GameTimer` (Domain contract + External implementation)
 
@@ -493,11 +493,11 @@ Dependency direction: **Persistence → `IStorage` (Domain)** and **External →
 |------|
 | Implements `IGameTimer` using MAUI / platform scheduling primitives (e.g. `DispatcherTimer`, platform timers, or `PeriodicTimer` bridged to the UI thread so Razor bindings stay safe). |
 
-### 6.11. `IRandom`, `IIapService`, `IAdsService` (Domain contracts + External implementations)
+### 6.11. `ISystemRandom`, `IIapService`, `IAdsService` (Domain contracts + External implementations)
 
-These interfaces are **business-facing ports**: Domain/Application describe *what* randomness and monetisation flows need; **External** supplies adapters (`SystemRandom`, store IAP, ad SDK wrappers). The tables below are the **intended contract** — keep signatures in sync when adding the corresponding `*.cs` files under `Domain/Contracts`.
+These interfaces are **business-facing ports**: Domain/Application describe *what* randomness and monetisation flows need; **External** supplies adapters (`SystemRandom`, store IAP, ad SDK wrappers). The tables below are the **intended contract** — keep signatures in sync when adding the corresponding `*.cs` files under `Domain/Interfaces`.
 
-#### `IRandom`
+#### `ISystemRandom`
 
 Used by **`GameEngine.SpawnRandomTile`** (and any future stochastic rule): choose among empty cells and implement **spawn weights** (e.g. 90% value `2`, 10% value `4`).
 
