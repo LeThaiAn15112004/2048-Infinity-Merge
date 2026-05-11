@@ -416,3 +416,7 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# App-local configuration (secrets); use templates / User Secrets / CI injection instead
+2048 Infinity Merge/2048 Infinity Merge.App/appsettings.json
+2048 Infinity Merge/2048 Infinity Merge.AppHost/appsettings.json

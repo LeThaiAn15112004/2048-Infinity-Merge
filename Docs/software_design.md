@@ -26,15 +26,17 @@
   - [6.1. `GameEngine` (Domain)](#61-gameengine-domain)
   - [6.2. `Board` (Domain)](#62-board-domain)
   - [6.3. `Tile` (Domain)](#63-tile-domain)
-  - [6.4. `MoveResult` (Domain)](#64-moveresult-domain)
-  - [6.5. `GameSessionService` (Application)](#65-gamesessionservice-application)
-  - [6.6. `HighScoreService` (Persistence)](#66-highscoreservice-persistence)
-  - [6.7. `SettingsService` (Persistence)](#67-settingsservice-persistence)
-  - [6.8. `SaveGameService` (Persistence)](#68-savegameservice-persistence)
-  - [6.9. Domain contracts and External implementations](#69-domain-contracts-and-external-implementations)
-  - [6.10. `IGameTimer` & `GameTimer`](#610-igametimer--gametimer-domain-contract--external-implementation)
-  - [6.11. `ISystemRandom`, `IIapService`, `IAdsService`](#611-isystemrandom-iiapservice-iadsservice-domain-contracts--external-implementations)
-  - [6.12. UI Components (Presentation)](#612-ui-components-presentation)
+  - [6.4. `MoveResult` & `MergeInfo` (Domain)](#64-moveresult--mergeinfo-domain)
+  - [6.5. `GameState` (Domain)](#65-gamestate-domain)
+  - [6.6. `HighScoreKey` & domain enums](#66-highscorekey--domain-enums)
+  - [6.7. `GameSessionService` (Application)](#67-gamesessionservice-application)
+  - [6.8. `HighScoreService` (Persistence)](#68-highscoreservice-persistence)
+  - [6.9. `SettingsService` (Persistence)](#69-settingsservice-persistence)
+  - [6.10. `SaveGameService` (Persistence)](#610-savegameservice-persistence)
+  - [6.11. Domain contracts and External implementations](#611-domain-contracts-and-external-implementations)
+  - [6.12. `IGameTimer` & `GameTimer`](#612-igametimer--gametimer-domain-contract--implementation)
+  - [6.13. `ISystemRandom`, `IIapService`, `IAdsService`](#613-isystemrandom-iiapservice-iadsservice-domain-contracts--external-implementations)
+  - [6.14. UI Components (Presentation)](#614-ui-components-presentation)
 
 ---
 
@@ -207,11 +209,11 @@ flowchart TB
 | Entity | Kind | Key Fields | Notes |
 |--------|------|------------|-------|
 | `Tile` | `record struct` | `Value : int`, `Id : Guid` | Value is always a power of 2 (BR-03). `Id` enables UI animation tracking across moves. |
-| `Board` | `class` | `Size : int`, `Cells : Tile?[,]` | `null` cell = empty. |
-| `MergeInfo` | `record` | `TileId : Guid`, `FromRow : int`, `FromCol : int`, `ToRow : int`, `ToCol : int`, `IsMerge : bool`, `ValueAfter : int` | One slide/merge step for UI animation; listed inside `MoveResult.Merges`. |
-| `MoveResult` | `record` | `Moved : bool`, `Merges : IReadOnlyList<MergeInfo>`, `Score : int`, `IsGameOver : bool` | Returned by `GameEngine.Move(...)` (BR-07, BR-08). `Score` is the delta gained on this move. |
-| `GameState` | `class` | `Board: Board`, `Mode : GameMode`, `Score : int`, `RemainingTime : TimeSpan?`, `IsPaused : bool` | Live state of the current session. `RemainingTime` is used only in Time Mode. |
-| `HighScoreKey` | `record` | `Mode : GameMode`, `Size : GridSize` | Key for high-score lookup per (mode × grid size) — BR-10. |
+| `Board` | `class` | `Size : int`, `Cells : Tile[,]?` | `Cells` may be **`null`** before init; inside the array, **`default(Tile)`** (`Value == 0`) acts as empty until spawn assigns values (see §6.2). |
+| `MergeInfo` | `record` | `TileId : Guid`, `FromRow/Col`, `ToRow/Col : int`, `IsMerged : bool`, `ValueAfter : int` | One slide/merge step for UI animation; listed inside `MoveResult.Merges`. |
+| `MoveResult` | `record` | `Moved : bool`, `Merges : IReadOnlyList<MergeInfo>?`, `Score : int`, `IsGameOver : bool` | Returned by `GameEngine.Move(...)` (BR-07, BR-08). `Score` is the delta gained on this move. |
+| `GameState` | `class` | `Board` (required), `Mode`, `Score`, `RemainingTime?`, `IsPaused` | Live state of the current session. `RemainingTime` is used only in Time Mode. |
+| `HighScoreKey` | `record` | `Mode : GameMode`, `GridSize : GridSize` | Key for high-score lookup per (mode × grid size) — BR-10. |
 
 #### Domain enums
 
@@ -244,7 +246,7 @@ All persistent data is stored via **`Microsoft.Maui.Storage.Preferences`** — a
 | `highscore.classic.5` | `int` | High score for Classic 5x5. |
 | `highscore.classic.6` | `int` | High score for Classic 6x6. |
 | `highscore.time.4` | `int` | High score for Time 4x4. |
-| `highscore.time.5` | `int` | High score for Time 4x4. |
+| `highscore.time.5` | `int` | High score for Time 5x5. |
 | `highscore.time.6` | `int` | High score for Time 6x6. |
 | `settings.sound` | `bool` | Sound on/off. |
 | `settings.theme` | `string` | Selected theme ID. |
@@ -371,33 +373,127 @@ sequenceDiagram
 
 | Aspect | Detail |
 |--------|--------|
-| **Responsibility** | Pure game rules: slide, merge, spawn, game-over detection. **No state, no I/O.** |
-| **Public methods** | `Board CreateBoard(GridSize size)`<br/>`Board SpawnRandomTile(Board board, ISystemRandom rng)`<br/>`MoveResult Move(Board board, Direction direction)`<br/>`bool HasAnyValidMove(Board board)` |
-| **Implements** | BR-01, BR-02, BR-03, BR-04, BR-05, BR-06, BR-07, BR-08, BR-09 |
-| **Notes** | Stateless and side-effect-free → trivially unit-testable. |
+| **Namespace** | `_2048_Infinity_Merge.Domain.Rules` |
+| **Responsibility** | Pure game rules: board creation, slide, merge, spawn, game-over detection. **No instance state, no I/O.** |
+| **Constants / fields** | `private const double SpawnTwoProbability = 0.5` — probability threshold for spawning tile **2** vs **4** when using `RollSpawnTileValue`. |
+| **Implements** | BR-01 … BR-09 (target); several methods below are **stubs** until slide/merge/spawn logic is completed. |
+
+| Member | Signature | Behaviour (current codebase) |
+|--------|-----------|------------------------------|
+| `CreateBoard` | `Board CreateBoard(GridSize size)` | Allocates `Board` with `Size = (int)size` and `Cells = new Tile[edgeLength, edgeLength]` (all cells initially `default(Tile)`). |
+| `RollSpawnTileValue` | `static int RollSpawnTileValue(ISystemRandom rng)` | Returns **2** if `rng.NextDouble(1.0) < SpawnTwoProbability`, else **4**. |
+| `RandomSpawnTile` | `Board RandomSpawnTile(Board board, ISystemRandom rng)` | Calls `RollSpawnTileValue` then returns `board` unchanged (**tile placement not implemented yet**). |
+| `Move` | `MoveResult Move(Board board, Direction direction)` | **Stub:** returns `Moved: false`, empty merges, `Score: 0`, `IsGameOver: false`. |
+| `HasAnyValidMove` | `bool HasAnyValidMove(Board board)` | **Stub:** returns `true`. |
 
 ### 6.2. `Board` (Domain)
 
 | Aspect | Detail |
 |--------|--------|
-| **Properties** | `int Size { get; }`<br/>`Tile?[,] Cells { get; }` |
-| **Methods** | `Tile? this[int r, int c]`<br/>`bool IsFull()`<br/>`IEnumerable<(int r, int c)> EmptyCells()`<br/>`Board Clone()` |
+| **Namespace** | `_2048_Infinity_Merge.Domain` |
+| **Kind** | `class` |
+
+| Member | Signature | Meaning |
+|--------|-----------|---------|
+| `Size` | `int Size { get; set; }` | Edge length of the square grid (e.g. **4**, **5**, **6** aligned with `GridSize`). |
+| `Cells` | `Tile[,]? Cells { get; set; }` | Two-dimensional array of tiles. **`null`** if not allocated; when allocated, dimensions should match `Size × Size`. Empty cells are currently **`default(Tile)`** (`Value == 0`, **`Guid.Empty`**) unless the model later adopts nullable `Tile?` per cell. |
+
+**Target helpers (design intent — not necessarily present in code yet):** indexer `Tile? this[int r, int c]`, `bool IsFull()`, `IEnumerable<(int r, int c)> EmptyCells()`, `Board Clone()` for immutable move pipeline and tests.
 
 ### 6.3. `Tile` (Domain)
 
 | Aspect | Detail |
 |--------|--------|
-| **Kind** | `record struct` |
-| **Fields** | `int Value` (power of 2), `Guid Id` (animation tracking) |
+| **Namespace** | `_2048_Infinity_Merge.Domain` |
+| **Kind** | `record struct Tile(int Value, Guid Id)` — positional record struct |
 
-### 6.4. `MoveResult` (Domain)
+| Positional parameter | Type | Meaning |
+|---------------------|------|---------|
+| `Value` | `int` | Face value shown on the tile (powers of two in classic 2048: **2**, **4**, **8**, …). **`0`** with **`Guid.Empty`** may represent an empty cell until spawning assigns a real id/value. |
+| `Id` | `Guid` | Stable identifier for **animation** and correlating **`MergeInfo`** entries across frames. |
+
+### 6.4. `MoveResult` & `MergeInfo` (Domain)
+
+#### `MoveResult`
 
 | Aspect | Detail |
 |--------|--------|
-| **Kind** | `record` |
-| **Fields** | `bool Moved`<br/>`IReadOnlyList<MergeInfo> Merges`<br/>`int Score` (delta gained this move)<br/>`bool IsGameOver` |
+| **Namespace** | `_2048_Infinity_Merge.Domain.Models.Entities` |
+| **Kind** | `record MoveResult(...)` |
 
-### 6.5. `GameSessionService` (Application)
+| Positional parameter | Type | Meaning |
+|---------------------|------|---------|
+| `Moved` | `bool` | **`true`** iff the board changed after the move (tiles slid or merged). |
+| `Merges` | `IReadOnlyList<MergeInfo>?` | Per-tile motion / merge telemetry for UI (**may be `null`** or empty when nothing moved). |
+| `Score` | `int` | Score **delta** gained **this move** only. |
+| `IsGameOver` | `bool` | **`true`** when no valid moves remain after this move (and spawn if applicable). |
+
+#### `MergeInfo`
+
+| Aspect | Detail |
+|--------|--------|
+| **Namespace** | `_2048_Infinity_Merge.Domain.Models.Entities` |
+| **Kind** | `record MergeInfo(...)` |
+
+| Positional parameter | Type | Meaning |
+|---------------------|------|---------|
+| `TileId` | `Guid` | Identity of the tile participating in this motion (matches `Tile.Id`). |
+| `FromCol`, `FromRow` | `int` | Source grid column / row **before** the move. |
+| `ToCol`, `ToRow` | `int` | Destination grid column / row **after** the move. |
+| `IsMerged` | `bool` | **`true`** if this step ends in a **merge** with another tile (same-value combine). |
+| `ValueAfter` | `int` | Tile face value **after** this motion (e.g. doubled value when merged). |
+
+### 6.5. `GameState` (Domain)
+
+| Aspect | Detail |
+|--------|--------|
+| **Namespace** | `_2048_Infinity_Merge.Domain` |
+| **Kind** | `class` — live session snapshot owned by Application layer |
+
+| Member | Signature | Meaning |
+|--------|-----------|---------|
+| `Board` | `required Board Board { get; set; }` | Current grid and tile layout. |
+| `Mode` | `GameMode Mode { get; set; }` | Active ruleset (**Classic** vs **Time**). |
+| `Score` | `int Score { get; set; }` | Running score for the active session. |
+| `RemainingTime` | `TimeSpan? RemainingTime { get; set; }` | Countdown remaining in **Time Mode**; **`null`** when not applicable. |
+| `IsPaused` | `bool IsPaused { get; set; }` | Session paused flag (timer must pause per BR-12 when integrated). |
+
+### 6.6. `HighScoreKey` & domain enums
+
+#### `HighScoreKey`
+
+| Aspect | Detail |
+|--------|--------|
+| **Namespace** | `_2048_Infinity_Merge.Domain` |
+| **Kind** | `record HighScoreKey(GameMode Mode, GridSize GridSize)` |
+
+| Positional parameter | Type | Meaning |
+|---------------------|------|---------|
+| `Mode` | `GameMode` | Which game mode the high score row belongs to. |
+| `GridSize` | `GridSize` | Board size dimension for that score row. |
+
+#### `GridSize` (`enum`)
+
+| Member | Underlying value | Meaning |
+|--------|------------------|---------|
+| `S4` | `4` | **4×4** board |
+| `S5` | `5` | **5×5** board |
+| `S6` | `6` | **6×6** board |
+
+#### `Direction` (`enum`)
+
+| Members | Meaning |
+|---------|---------|
+| `Up`, `Down`, `Left`, `Right` | Player swipe / key direction for `GameEngine.Move`. |
+
+#### `GameMode` (`enum`)
+
+| Members | Meaning |
+|---------|---------|
+| `Classic` | Untimed classic mode |
+| `Time` | Timed mode (uses `IGameTimer` + `RemainingTime`) |
+
+### 6.7. `GameSessionService` (Application)
 
 | Aspect | Detail |
 |--------|--------|
@@ -406,7 +502,7 @@ sequenceDiagram
 | **Public API** | `event Action StateChanged`<br/>`GameState Current { get; }`<br/>`void StartNewGame(GameMode mode, GridSize size)`<br/>`void Move(Direction direction)`<br/>`void Pause()` / `void Resume()`<br/>`void QuitToHome()` |
 | **Implements** | UC-01, UC-02, UC-03 |
 
-### 6.6. `HighScoreService` (Persistence)
+### 6.8. `HighScoreService` (Persistence)
 
 | Aspect | Detail |
 |--------|--------|
@@ -415,7 +511,7 @@ sequenceDiagram
 | **Depends on** | `IStorage` |
 | **Implements** | BR-10 |
 
-### 6.7. `SettingsService` (Persistence)
+### 6.9. `SettingsService` (Persistence)
 
 | Aspect | Detail |
 |--------|--------|
@@ -424,7 +520,7 @@ sequenceDiagram
 | **Depends on** | `IStorage` |
 | **Implements** | UC-04 |
 
-### 6.8. `SaveGameService` (Persistence)
+### 6.10. `SaveGameService` (Persistence)
 
 | Aspect | Detail |
 |--------|--------|
@@ -433,7 +529,7 @@ sequenceDiagram
 | **Depends on** | `IStorage` |
 | **Notes** | Keeps resume-flow persistence outside Domain and Application orchestration. |
 
-### 6.9. Domain contracts and External implementations
+### 6.11. Domain contracts and External implementations
 
 This section explains how **ports** (interfaces in **Domain**) connect to **adapters** (concrete classes in **External**).
 
@@ -459,9 +555,9 @@ Dependency direction: **Persistence → `IStorage` (Domain)** and **External →
 
 | Class | Role |
 |-------|------|
-| `PreferencesStorage` | Implements `IStorage` using **`Microsoft.Maui.Storage.Preferences`** (OS-backed key/value on Android / iOS / macOS / Windows). |
+| `PreferencesStorage` | Implements `IStorage` using **`Microsoft.Maui.Storage.Preferences`** (target). **`*.cs` may temporarily live under `Domain/Rules`** as a stub until the adapter is moved exclusively to **External** + DI wiring from **`Merge.App`**. |
 
-**Who uses `IStorage`:** Persistence layer services listed in §6.6–§6.8 inject `IStorage`; they choose concrete keys and types (`int`, `bool`, `string`, serialized board JSON, etc.) as described in §4.2.
+**Who uses `IStorage`:** Persistence layer services listed in §6.8–§6.10 inject `IStorage`; they choose concrete keys and types (`int`, `bool`, `string`, serialized board JSON, etc.) as described in §4.2.
 
 **Swap:** The implementation behind `IStorage` may later change (e.g. SQLite) without changing Domain contracts or Application orchestration — only DI registration and the External adapter change.
 
@@ -469,10 +565,10 @@ Dependency direction: **Persistence → `IStorage` (Domain)** and **External →
 
 | Contract (Domain) | Typical External implementation | Detailed spec |
 |-------------------|----------------------------------|---------------|
-| `IGameTimer` | `GameTimer` (or platform timer wrapper) | §6.10 |
-| `ISystemRandom`, `IIapService`, `IAdsService` | `SystemRandom`, store IAP adapter, ad-network adapter | §6.11 |
+| `IGameTimer` | `GameTimer` (reference impl in Domain/Rules; MAUI `DispatcherTimer` adapter optional) | §6.12 |
+| `ISystemRandom`, `IIapService`, `IAdsService` | `SystemRandom`, store IAP adapter, ad-network adapter | §6.13 |
 
-### 6.10. `IGameTimer` & `GameTimer` (Domain contract + External implementation)
+### 6.12. `IGameTimer` & `GameTimer` (Domain contract + implementation)
 
 `IGameTimer` abstracts a **countdown** used in **Time Mode**. `GameSessionService` owns the timer instance: it starts when a timed session begins, and **game pause must pause the timer** as well (BR-12). The UI subscribes to ticks to refresh the visible countdown.
 
@@ -484,29 +580,39 @@ Dependency direction: **Persistence → `IStorage` (Domain)** and **External →
 | `void Pause()` | Freezes the countdown: **no further `Tick` events** until `Resume`. Internally the implementation stores **remaining time** so `Resume` continues where the player left off (does not jump forward). |
 | `void Resume()` | Continues from the remaining time saved at `Pause`. If the timer was not paused or was stopped, behaviour is undefined unless documented by the adapter — reference impl should no-op or align with “only valid after Pause”. |
 | `void Stop()` | Ends the countdown: unsubscribed semantics — **no more `Tick`**, **`Elapsed` must not fire** after stop unless `Start` is called again. Used when quitting to home, ending the session, or switching modes. |
-| `event Action<TimeSpan> Tick` | Raised on a **fixed cadence** while the timer is running and not paused (e.g. once per second). The argument is the **remaining time** until zero (`TimeSpan`), so the UI can bind directly without recomputing. Implementations should avoid flooding (reasonable minimum interval, aligned with UI refresh needs). |
-| `event Action<TimeSpan> Elapsed` | Raised **once** when remaining time reaches **zero** (typically with `TimeSpan.Zero` or equivalent). Signals Time Mode end from the timer’s perspective; `GameSessionService` then applies game-over or mode-specific rules. Must not repeat until after the next `Start`. |
+| `event Action<TimeSpan>? Tick` | Raised on a **fixed cadence** while the timer is running and not paused (e.g. once per second). The argument is the **remaining time** until zero (`TimeSpan`), so the UI can bind directly without recomputing. Implementations should avoid flooding (reasonable minimum interval, aligned with UI refresh needs). |
+| `event Action<TimeSpan>? Elapsed` | Raised **once** when remaining time reaches **zero** (typically with `TimeSpan.Zero` or equivalent). Signals Time Mode end from the timer’s perspective; `GameSessionService` then applies game-over or mode-specific rules. Must not repeat until after the next `Start`. |
 
-#### `GameTimer` (External)
+#### `GameTimer` (`Domain/Rules` — reference implementation)
 
-| Role |
-|------|
-| Implements `IGameTimer` using MAUI / platform scheduling primitives (e.g. `DispatcherTimer`, platform timers, or `PeriodicTimer` bridged to the UI thread so Razor bindings stay safe). |
+| Aspect | Detail |
+|--------|--------|
+| **Namespace** | `_2048_Infinity_Merge.Domain.Rules` |
+| **Role** | Implements `IGameTimer` using **`System.Threading.Timer`** (thread-pool callbacks). Uses an internal **`DateTimeOffset` deadline** plus **`TimeSpan` tick period** (currently **1 second**) so remaining time stays accurate across pause/resume. |
+| **Fields / state** | `_gate` (lock), `_tickPeriod`, `_timer`, `_deadline`, `_paused`, `_pausedRemaining`. |
+| **Methods** | `Start`, `Pause`, `Resume`, `Stop` — match interface; private `ScheduleTimerLocked`, `OnTick`, `RemainingOrZero`, `DisposeTimerLocked`. |
 
-### 6.11. `ISystemRandom`, `IIapService`, `IAdsService` (Domain contracts + External implementations)
+**Note:** UI layers consuming `Tick` / `Elapsed` may need to **marshal to the UI thread** when updating Razor bindings. An alternate adapter can reimplement `IGameTimer` with **`DispatcherTimer`** without changing Domain.
+
+### 6.13. `ISystemRandom`, `IIapService`, `IAdsService` (Domain contracts + External implementations)
 
 These interfaces are **business-facing ports**: Domain/Application describe *what* randomness and monetisation flows need; **External** supplies adapters (`SystemRandom`, store IAP, ad SDK wrappers). The tables below are the **intended contract** — keep signatures in sync when adding the corresponding `*.cs` files under `Domain/Interfaces`.
 
 #### `ISystemRandom`
 
-Used by **`GameEngine.SpawnRandomTile`** (and any future stochastic rule): choose among empty cells and implement **spawn weights** (e.g. 90% value `2`, 10% value `4`).
+Used by **`GameEngine.RandomSpawnTile`** / **`RollSpawnTileValue`** (and any future stochastic rule): choose among empty cells and implement **spawn weights** (currently **50%** tile **2**, **50%** tile **4** via `RollSpawnTileValue`).
 
 | Member | Behaviour |
 |--------|-----------|
-| `double NextDouble()` | Returns a pseudo-random **double in \[0, 1)** (uniform). Used for spawn probability thresholds so domain logic stays readable (compare against constants rather than magic integers). |
-| `int Next(int maxExclusive)` | Returns a pseudo-random **integer in \[0, maxExclusive)** (uniform). Used to pick **which empty cell** receives the new tile when there are multiple vacant indices. **`maxExclusive` must be positive**; callers pass `emptyCellCount`. |
+| `double NextDouble(double maxExclusive)` | Contract parameter **`maxExclusive`** documents an upper bound for scaling; **`SystemRandom`** currently forwards **`Random.Shared.NextDouble()`** (**uniform in \[0, 1)**). Used for spawn probability thresholds (`RollSpawnTileValue` compares against `SpawnTwoProbability`). |
+| `int Next(int maxExclusive)` | Returns a pseudo-random **integer in \[0, maxExclusive)** (uniform via `Random.Shared.Next`). Used to pick **which empty cell** receives the new tile when there are multiple vacant indices. **`maxExclusive` must be positive**; callers pass `emptyCellCount`. Throws **`ArgumentOutOfRangeException`** if violated (in `SystemRandom`). |
 
-**External implementation:** `SystemRandom` — thin wrapper over **`System.Random`** (`Random.Shared` or an injected instance for test doubles).
+#### `SystemRandom` (`Domain/Rules`)
+
+| Aspect | Detail |
+|--------|--------|
+| **Namespace** | `_2048_Infinity_Merge.Domain.Rules` |
+| **Methods** | `Next(int maxExclusive)` — validates argument then delegates to **`Random.Shared.Next`**. `NextDouble(double maxExclusive)` — validates argument then returns **`Random.Shared.NextDouble()`** (**\[0, 1)**). |
 
 #### `IIapService`
 
@@ -533,7 +639,7 @@ Controls **when** and **how** ads appear (banner, interstitial, rewarded — wha
 
 **External implementation:** Ad-network SDK wrapper(s); keeps Domain free of vendor namespaces.
 
-### 6.12. UI Components (Presentation)
+### 6.14. UI Components (Presentation)
 
 | Component | Purpose | Key bindings |
 |-----------|---------|--------------|
