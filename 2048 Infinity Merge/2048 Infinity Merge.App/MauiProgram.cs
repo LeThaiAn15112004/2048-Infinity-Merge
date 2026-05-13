@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using _2048_Infinity_Merge.Domain.Interfaces;
+using _2048_Infinity_Merge.Domain.Rules;
+using Microsoft.Extensions.Logging;
 
 namespace _2048_Infinity_Merge.App;
 
@@ -16,6 +18,9 @@ public static class MauiProgram
 			});
 
 		builder.Services.AddMauiBlazorWebView();
+		
+	//Dependencies
+	builder.Services.AddSingleton<ISystemRandom, SystemRandom>();
 
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();

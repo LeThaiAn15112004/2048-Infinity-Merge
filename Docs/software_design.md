@@ -374,17 +374,25 @@ sequenceDiagram
 | Aspect | Detail |
 |--------|--------|
 | **Namespace** | `_2048_Infinity_Merge.Domain.Rules` |
-| **Responsibility** | Pure game rules: board creation, slide, merge, spawn, game-over detection. **No instance state, no I/O.** |
-| **Constants / fields** | `private const double SpawnTwoProbability = 0.5` — probability threshold for spawning tile **2** vs **4** when using `RollSpawnTileValue`. |
-| **Implements** | BR-01 … BR-09 (target); several methods below are **stubs** until slide/merge/spawn logic is completed. |
+| **Responsibility** | Board creation, spawn, game-over probe; **slide/merge** delegated to **`IMoving`** (default **`Moving`**). **No I/O.** |
+| **Construction** | `GameEngine(IMoving? moving = null)` — uses `new Moving()` when `moving` is omitted (tests may inject a fake). |
+| **Constants / fields** | `private const double SpawnTwoProbability = 0.5`; `private readonly IMoving _moving`. |
+| **Implements** | BR-01 … BR-09 (target). |
 
 | Member | Signature | Behaviour (current codebase) |
 |--------|-----------|------------------------------|
 | `CreateBoard` | `Board CreateBoard(GridSize size)` | Allocates `Board` with `Size = (int)size` and `Cells = new Tile[edgeLength, edgeLength]` (all cells initially `default(Tile)`). |
 | `RollSpawnTileValue` | `static int RollSpawnTileValue(ISystemRandom rng)` | Returns **2** if `rng.NextDouble(1.0) < SpawnTwoProbability`, else **4**. |
-| `RandomSpawnTile` | `Board RandomSpawnTile(Board board, ISystemRandom rng)` | Calls `RollSpawnTileValue` then returns `board` unchanged (**tile placement not implemented yet**). |
-| `Move` | `MoveResult Move(Board board, Direction direction)` | **Stub:** returns `Moved: false`, empty merges, `Score: 0`, `IsGameOver: false`. |
-| `HasAnyValidMove` | `bool HasAnyValidMove(Board board)` | **Stub:** returns `true`. |
+| `RandomSpawnTile` | `Board RandomSpawnTile(Board board, ISystemRandom rng)` | Counts cells with `Tile.Value == 0`, picks index `rng.Next(emptyCount)`, sets that cell to `new Tile(RollSpawnTileValue(rng), Guid.NewGuid())`. If grid is full, returns `board` unchanged. Requires `Cells` square `Size×Size`. |
+| `Move` | `MoveResult Move(Board board, Direction direction)` | Delegates slide+merge to **`_moving.TryApplyMove`**. Mutates `board.Cells`; fills `Merges` / `Score`; `IsGameOver` = `!HasAnyValidMove(board)` after the move. |
+| `HasAnyValidMove` | `bool HasAnyValidMove(Board board)` | **`true`** if cloning the board and calling **`_moving.TryApplyMove`** in **any** `Direction` would change the grid. |
+
+#### `IMoving` / `Moving` (slide–merge)
+
+| Kind | Detail |
+|------|--------|
+| **`IMoving`** | Contract in `Domain/Interfaces`: `TryApplyMove`, `ApplyAllRowsLeft` / `ApplyAllRowsRight`, `ApplyAllColsUp` / `ApplyAllColsDown`, `CompressRowLeft` / `CompressRowRight`, `CompressColUp` / `CompressColDown`, `IsCellEmpty`. |
+| **`Moving`** | Sealed implementation in `Domain/Rules`; `TryApplyMove` dispatches to the four `ApplyAll*` methods, each iterating rows/columns and calling the corresponding `Compress*` helpers. |
 
 ### 6.2. `Board` (Domain)
 
