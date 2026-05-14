@@ -409,45 +409,18 @@ Source: **`Domain/Interfaces/IMoving.cs`**, implementation **`Domain/Rules/Movin
 
 #### `IMoving` — method specifications
 
-**`TryApplyMove`** — `bool TryApplyMove(Tile[,] cells, int n, Direction direction, List<MergeInfo> merges, ref int score)`
-
-Single **entry point** for one move direction. Selects the row/column sweep based on **`direction`**: **`Left`** → `ApplyAllRowsLeft`, **`Right`** → `ApplyAllRowsRight`, **`Up`** → `ApplyAllColsUp`, **`Down`** → `ApplyAllColsDown`. **`cells`** must be allocated **`n × n`**. Returns whether **any** cell on the board changed. Unknown enum values: reference implementation throws **`ArgumentOutOfRangeException`**.
-
-**`ApplyAllRowsLeft`** — `bool ApplyAllRowsLeft(Tile[,] cells, int n, List<MergeInfo> merges, ref int score)`
-
-For each row index **`r`** from **`0`** to **`n − 1`**, calls **`CompressRowLeft(cells, r, n, merges, ref score)`**. Returns **`true`** if **at least one** row reported a change (OR-combination of per-row results).
-
-**`ApplyAllRowsRight`** — `bool ApplyAllRowsRight(Tile[,] cells, int n, List<MergeInfo> merges, ref int score)`
-
-Same as **`ApplyAllRowsLeft`**, but uses **`CompressRowRight`** for every row (slide/merge toward the **high** column index).
-
-**`ApplyAllColsUp`** — `bool ApplyAllColsUp(Tile[,] cells, int n, List<MergeInfo> merges, ref int score)`
-
-For each column index **`c`** from **`0`** to **`n − 1`**, calls **`CompressColUp(cells, c, n, merges, ref score)`**. Returns **`true`** if any column changed.
-
-**`ApplyAllColsDown`** — `bool ApplyAllColsDown(Tile[,] cells, int n, List<MergeInfo> merges, ref int score)`
-
-Same as **`ApplyAllColsUp`**, but uses **`CompressColDown`** for every column (slide/merge toward **row `n − 1`** — the “down” wall).
-
-**`CompressRowLeft`** — `bool CompressRowLeft(Tile[,] cells, int r, int n, List<MergeInfo> merges, ref int score)`
-
-Operates on **one row** **`r`**. Scans columns **`0 … n−1`**, collects non-empty tiles in order. Applies **one leftward pass**: adjacent equal non-zero values merge into a single tile with **doubled** value and a **new** `Guid`; both source tiles get **`MergeInfo`** with **`IsMerged == true`**; **`score`** increases by that merged value. Non-merging tiles slide toward column **`0`**; a **`MergeInfo`** with **`IsMerged == false`** is emitted when a tile’s column index changes. Vacated cells become **`default(Tile)`** (`Value == 0`). Returns **`true`** if any **`cells[r, c]`** differs from the row snapshot taken at entry (value or **`Id`**).
-
-**`CompressRowRight`** — `bool CompressRowRight(Tile[,] cells, int r, int n, List<MergeInfo> merges, ref int score)`
-
-Same merge semantics as **`CompressRowLeft`**, but the line is collected **right to left** (`n−1` down to **`0`**) and packed toward column **`n − 1`**; trailing columns are cleared with **`default(Tile)`**.
-
-**`CompressColUp`** — `bool CompressColUp(Tile[,] cells, int c, int n, List<MergeInfo> merges, ref int score)`
-
-Operates on **one column** **`c`**. Scans rows **`0 … n−1`** top to bottom, collects non-empty tiles, then applies the same **2048** merge-and-pack rules along the column toward **row `0`**. **`MergeInfo`** uses fixed **`c`** for **`FromCol`/`ToCol`** and varying row indices for **`FromRow`/`ToRow`**. Returns **`true`** if that column changed.
-
-**`CompressColDown`** — `bool CompressColDown(Tile[,] cells, int c, int n, List<MergeInfo> merges, ref int score)`
-
-Same as **`CompressColUp`**, but collects tiles **bottom to top** and packs toward **row `n − 1`**; rows above the packed result are cleared with **`default(Tile)`**.
-
-**`IsCellEmpty`** — `bool IsCellEmpty(Tile tile)`
-
-Pure predicate: returns **`true`** iff **`tile.Value == 0`**. Used to skip empty cells when building a line and to align with board “empty cell” conventions elsewhere (spawn, full-grid checks).
+| Method | Signature | Specification |
+|--------|-----------|---------------|
+| `TryApplyMove` | `bool TryApplyMove(Tile[,] cells, int n, Direction direction, List<MergeInfo> merges, ref int score)` | Single **entry point** for one move direction. Selects the row/column sweep based on **`direction`**: **`Left`** → `ApplyAllRowsLeft`, **`Right`** → `ApplyAllRowsRight`, **`Up`** → `ApplyAllColsUp`, **`Down`** → `ApplyAllColsDown`. **`cells`** must be allocated **`n × n`**. Returns whether **any** cell on the board changed. Unknown enum values: reference implementation throws **`ArgumentOutOfRangeException`**. |
+| `ApplyAllRowsLeft` | `bool ApplyAllRowsLeft(Tile[,] cells, int n, List<MergeInfo> merges, ref int score)` | For each row index **`r`** from **`0`** to **`n − 1`**, calls **`CompressRowLeft(cells, r, n, merges, ref score)`**. Returns **`true`** if **at least one** row reported a change (OR-combination of per-row results). |
+| `ApplyAllRowsRight` | `bool ApplyAllRowsRight(Tile[,] cells, int n, List<MergeInfo> merges, ref int score)` | Same as **`ApplyAllRowsLeft`**, but uses **`CompressRowRight`** for every row (slide/merge toward the **high** column index). |
+| `ApplyAllColsUp` | `bool ApplyAllColsUp(Tile[,] cells, int n, List<MergeInfo> merges, ref int score)` | For each column index **`c`** from **`0`** to **`n − 1`**, calls **`CompressColUp(cells, c, n, merges, ref score)`**. Returns **`true`** if any column changed. |
+| `ApplyAllColsDown` | `bool ApplyAllColsDown(Tile[,] cells, int n, List<MergeInfo> merges, ref int score)` | Same as **`ApplyAllColsUp`**, but uses **`CompressColDown`** for every column (slide/merge toward **row `n − 1`** — the “down” wall). |
+| `CompressRowLeft` | `bool CompressRowLeft(Tile[,] cells, int r, int n, List<MergeInfo> merges, ref int score)` | Operates on **one row** **`r`**. Scans columns **`0 … n−1`**, collects non-empty tiles in order. Applies **one leftward pass**: adjacent equal non-zero values merge into a single tile with **doubled** value and a **new** `Guid`; both source tiles get **`MergeInfo`** with **`IsMerged == true`**; **`score`** increases by that merged value. Non-merging tiles slide toward column **`0`**; a **`MergeInfo`** with **`IsMerged == false`** is emitted when a tile’s column index changes. Vacated cells become **`default(Tile)`** (`Value == 0`). Returns **`true`** if any **`cells[r, c]`** differs from the row snapshot taken at entry (value or **`Id`**). |
+| `CompressRowRight` | `bool CompressRowRight(Tile[,] cells, int r, int n, List<MergeInfo> merges, ref int score)` | Same merge semantics as **`CompressRowLeft`**, but the line is collected **right to left** (`n−1` down to **`0`**) and packed toward column **`n − 1`**; trailing columns are cleared with **`default(Tile)`**. |
+| `CompressColUp` | `bool CompressColUp(Tile[,] cells, int c, int n, List<MergeInfo> merges, ref int score)` | Operates on **one column** **`c`**. Scans rows **`0 … n−1`** top to bottom, collects non-empty tiles, then applies the same **2048** merge-and-pack rules along the column toward **row `0`**. **`MergeInfo`** uses fixed **`c`** for **`FromCol`/`ToCol`** and varying row indices for **`FromRow`/`ToRow`**. Returns **`true`** if that column changed. |
+| `CompressColDown` | `bool CompressColDown(Tile[,] cells, int c, int n, List<MergeInfo> merges, ref int score)` | Same as **`CompressColUp`**, but collects tiles **bottom to top** and packs toward **row `n − 1`**; rows above the packed result are cleared with **`default(Tile)`**. |
+| `IsCellEmpty` | `bool IsCellEmpty(Tile tile)` | Pure predicate: returns **`true`** iff **`tile.Value == 0`**. Used to skip empty cells when building a line and to align with board “empty cell” conventions elsewhere (spawn, full-grid checks). |
 
 #### `Moving` — implementation notes
 
@@ -570,35 +543,67 @@ Pure predicate: returns **`true`** iff **`tile.Value == 0`**. Used to skip empty
 |--------|--------|
 | **Responsibility** | Owns the live `GameState`, drives the game loop, raises `StateChanged` for the UI. Coordinates `IGameEngine`, `IGameTimer`, `HighScoreService`. |
 | **Lifetime** | Singleton (registered in `MauiProgram`). |
-| **Public API** | `event Action StateChanged`<br/>`GameState Current { get; }`<br/>`void StartNewGame(GameMode mode, GridSize size)`<br/>`void Move(Direction direction)`<br/>`void Pause()` / `void Resume()`<br/>`void QuitToHome()` |
 | **Implements** | UC-01, UC-02, UC-03 |
+
+#### `GameSessionService` — member specifications
+
+| Member | Signature | Specification |
+|--------|-----------|---------------|
+| `StateChanged` | `event Action StateChanged` | Raised when session state changes so Razor UI can re-bind (see §5.2). |
+| `Current` | `GameState Current { get; }` | Live session snapshot (board, mode, score, timer fields). |
+| `StartNewGame` | `void StartNewGame(GameMode mode, GridSize size)` | Initializes a new session via `IGameEngine` (board + spawns); resets pause/timer per mode (UC-01). |
+| `Move` | `void Move(Direction direction)` | Applies one player move: calls `IGameEngine.Move`, spawn, score update, game-over and high-score flow (UC-02). |
+| `Pause` | `void Pause()` | Pauses session and timer where applicable (UC-03, BR-12). |
+| `Resume` | `void Resume()` | Resumes session and timer (UC-03). |
+| `QuitToHome` | `void QuitToHome()` | Ends session, stops timer, navigates logic back to home shell. |
 
 ### 6.8. `HighScoreService` (Persistence)
 
 | Aspect | Detail |
 |--------|--------|
 | **Responsibility** | Read & write high scores. |
-| **Public API** | `int GetHighScore(GameMode mode, GridSize size)`<br/>`void SaveIfBetter(GameMode mode, GridSize size, int score)` |
 | **Depends on** | `IStorage` |
 | **Implements** | BR-10 |
+
+#### `HighScoreService` — method specifications
+
+| Method | Signature | Specification |
+|--------|-----------|---------------|
+| `GetHighScore` | `int GetHighScore(GameMode mode, GridSize size)` | Returns the persisted high score for the given mode and grid size (keys per §4.2). |
+| `SaveIfBetter` | `void SaveIfBetter(GameMode mode, GridSize size, int score)` | Writes the score only when it strictly exceeds the stored value (BR-10). |
 
 ### 6.9. `SettingsService` (Persistence)
 
 | Aspect | Detail |
 |--------|--------|
 | **Responsibility** | Read & write user settings. |
-| **Public API** | `bool SoundEnabled { get; set; }`<br/>`string Theme { get; set; }`<br/>`TimeSpan TimeModeDuration { get; set; }`<br/>`event Action SettingsChanged` |
 | **Depends on** | `IStorage` |
 | **Implements** | UC-04 |
+
+#### `SettingsService` — member specifications
+
+| Member | Signature | Specification |
+|--------|-----------|---------------|
+| `SoundEnabled` | `bool SoundEnabled { get; set; }` | Backed by `IStorage` key `settings.sound` (§4.2). |
+| `Theme` | `string Theme { get; set; }` | Theme identifier; key `settings.theme`. |
+| `TimeModeDuration` | `TimeSpan TimeModeDuration { get; set; }` | Default round length for Time Mode; persisted as seconds (`settings.timeMode.duration`). |
+| `SettingsChanged` | `event Action SettingsChanged` | Raised after a setting write so UI can refresh. |
 
 ### 6.10. `SaveGameService` (Persistence)
 
 | Aspect | Detail |
 |--------|--------|
 | **Responsibility** | Save and restore in-progress game state (board, mode, score, remaining time). |
-| **Public API** | `void Save(GameState state)`<br/>`GameState? TryRestore()`<br/>`void Clear()` |
 | **Depends on** | `IStorage` |
 | **Notes** | Keeps resume-flow persistence outside Domain and Application orchestration. |
+
+#### `SaveGameService` — method specifications
+
+| Method | Signature | Specification |
+|--------|-----------|---------------|
+| `Save` | `void Save(GameState state)` | Serializes in-progress state to `IStorage` keys in §4.2 (`savegame.*`). |
+| `TryRestore` | `GameState? TryRestore()` | Returns a hydrated `GameState` if valid save data exists; otherwise **`null`**. |
+| `Clear` | `void Clear()` | Removes save-game keys so the next session does not auto-resume stale data. |
 
 ### 6.11. Domain contracts and External implementations
 
@@ -616,11 +621,11 @@ Dependency direction: **Persistence → `IStorage` (Domain)** and **External →
 
 `IStorage` is the abstraction for **local key/value persistence** (high scores, settings, save-game payloads).
 
-| Member | Meaning |
-|--------|---------|
-| `T? Get<T>(string key)` | Reads a value for `key`. Returns **`null`** if the key has never been written or cannot be deserialized. **`T?` is the stored value**, not another storage object. |
-| `void Set<T>(string key, T value)` | Writes or overwrites the value for `key`. |
-| `void Remove(string key)` | Deletes `key` if present. |
+| Method | Signature | Specification |
+|--------|-----------|---------------|
+| `Get` | `T? Get<T>(string key)` | Reads a value for `key`. Returns **`null`** if the key has never been written or cannot be deserialized. **`T?` is the stored value**, not another storage object. |
+| `Set` | `void Set<T>(string key, T value)` | Writes or overwrites the value for `key`. |
+| `Remove` | `void Remove(string key)` | Deletes `key` if present. |
 
 **External implementation (reference):**
 
@@ -645,16 +650,16 @@ Dependency direction: **Persistence → `IStorage` (Domain)** and **External →
 
 `IGameTimer` abstracts a **countdown** used in **Time Mode**. `GameSessionService` owns the timer instance: it starts when a timed session begins, and **game pause must pause the timer** as well (BR-12). The UI subscribes to ticks to refresh the visible countdown.
 
-#### `IGameTimer` — members
+#### `IGameTimer` — member specifications
 
-| Member | Behaviour |
-|--------|-----------|
-| `void Start(TimeSpan duration)` | Starts (or **restarts**) the countdown from the given total duration. Any previous run is effectively replaced: remaining time becomes `duration`, periodic ticks resume according to the implementation (see `Tick`). Idempotent expectation: calling `Start` again resets the clock for a new round. |
-| `void Pause()` | Freezes the countdown: **no further `Tick` events** until `Resume`. Internally the implementation stores **remaining time** so `Resume` continues where the player left off (does not jump forward). |
-| `void Resume()` | Continues from the remaining time saved at `Pause`. If the timer was not paused or was stopped, behaviour is undefined unless documented by the adapter — reference impl should no-op or align with “only valid after Pause”. |
-| `void Stop()` | Ends the countdown: unsubscribed semantics — **no more `Tick`**, **`Elapsed` must not fire** after stop unless `Start` is called again. Used when quitting to home, ending the session, or switching modes. |
-| `event Action<TimeSpan>? Tick` | Raised on a **fixed cadence** while the timer is running and not paused (e.g. once per second). The argument is the **remaining time** until zero (`TimeSpan`), so the UI can bind directly without recomputing. Implementations should avoid flooding (reasonable minimum interval, aligned with UI refresh needs). |
-| `event Action<TimeSpan>? Elapsed` | Raised **once** when remaining time reaches **zero** (typically with `TimeSpan.Zero` or equivalent). Signals Time Mode end from the timer’s perspective; `GameSessionService` then applies game-over or mode-specific rules. Must not repeat until after the next `Start`. |
+| Member | Signature | Specification |
+|--------|-----------|---------------|
+| `Start` | `void Start(TimeSpan duration)` | Starts (or **restarts**) the countdown from the given total duration. Any previous run is effectively replaced: remaining time becomes `duration`, periodic ticks resume according to the implementation (see `Tick`). Idempotent expectation: calling `Start` again resets the clock for a new round. |
+| `Pause` | `void Pause()` | Freezes the countdown: **no further `Tick` events** until `Resume`. Internally the implementation stores **remaining time** so `Resume` continues where the player left off (does not jump forward). |
+| `Resume` | `void Resume()` | Continues from the remaining time saved at `Pause`. If the timer was not paused or was stopped, behaviour is undefined unless documented by the adapter — reference impl should no-op or align with “only valid after Pause”. |
+| `Stop` | `void Stop()` | Ends the countdown: unsubscribed semantics — **no more `Tick`**, **`Elapsed` must not fire** after stop unless `Start` is called again. Used when quitting to home, ending the session, or switching modes. |
+| `Tick` | `event Action<TimeSpan>? Tick` | Raised on a **fixed cadence** while the timer is running and not paused (e.g. once per second). The argument is the **remaining time** until zero (`TimeSpan`), so the UI can bind directly without recomputing. Implementations should avoid flooding (reasonable minimum interval, aligned with UI refresh needs). |
+| `Elapsed` | `event Action<TimeSpan>? Elapsed` | Raised **once** when remaining time reaches **zero** (typically with `TimeSpan.Zero` or equivalent). Signals Time Mode end from the timer’s perspective; `GameSessionService` then applies game-over or mode-specific rules. Must not repeat until after the next `Start`. |
 
 #### `GameTimer` (`Domain/Rules` — reference implementation)
 
@@ -663,7 +668,19 @@ Dependency direction: **Persistence → `IStorage` (Domain)** and **External →
 | **Namespace** | `_2048_Infinity_Merge.Domain.Rules` |
 | **Role** | Implements `IGameTimer` using **`System.Threading.Timer`** (thread-pool callbacks). Uses an internal **`DateTimeOffset` deadline** plus **`TimeSpan` tick period** (currently **1 second**) so remaining time stays accurate across pause/resume. |
 | **Fields / state** | `_gate` (lock), `_tickPeriod`, `_timer`, `_deadline`, `_paused`, `_pausedRemaining`. |
-| **Methods** | `Start`, `Pause`, `Resume`, `Stop` — match interface; private `ScheduleTimerLocked`, `OnTick`, `RemainingOrZero`, `DisposeTimerLocked`. |
+
+##### `GameTimer` — method specifications (reference)
+
+| Method | Kind | Specification |
+|--------|------|---------------|
+| `Start` | public | Matches **`IGameTimer.Start`**; arms deadline and timer. |
+| `Pause` | public | Matches **`IGameTimer.Pause`**; freezes remaining time and stops ticks until `Resume`. |
+| `Resume` | public | Matches **`IGameTimer.Resume`**; continues from `_pausedRemaining`. |
+| `Stop` | public | Matches **`IGameTimer.Stop`**; tears down timer; no further **`Tick`** / **`Elapsed`** until next `Start`. |
+| `ScheduleTimerLocked` | private | Schedules or reschedules the underlying **`System.Threading.Timer`** while holding `_gate`. |
+| `OnTick` | private | Callback: computes remaining time, raises **`Tick`**, raises **`Elapsed`** at zero, disposes timer when finished. |
+| `RemainingOrZero` | private | Returns non-negative remaining **`TimeSpan`** for events and UI logic. |
+| `DisposeTimerLocked` | private | Disposes timer instance under lock (used on stop / elapsed). |
 
 **Note:** UI layers consuming `Tick` / `Elapsed` may need to **marshal to the UI thread** when updating Razor bindings. An alternate adapter can reimplement `IGameTimer` with **`DispatcherTimer`** without changing Domain.
 
@@ -675,27 +692,33 @@ These interfaces are **business-facing ports**: Domain/Application describe *wha
 
 Used by **`IGameEngine.RandomSpawnTile`** / **`RollSpawnTileValue`** (and any future stochastic rule): choose among empty cells and implement **spawn weights** (currently **50%** tile **2**, **50%** tile **4** via `RollSpawnTileValue`).
 
-| Member | Behaviour |
-|--------|-----------|
-| `double NextDouble(double maxExclusive)` | Contract parameter **`maxExclusive`** documents an upper bound for scaling; **`SystemRandom`** currently forwards **`Random.Shared.NextDouble()`** (**uniform in \[0, 1)**). Used for spawn probability thresholds (`RollSpawnTileValue` compares against `SpawnTwoProbability`). |
-| `int Next(int maxExclusive)` | Returns a pseudo-random **integer in \[0, maxExclusive)** (uniform via `Random.Shared.Next`). Used to pick **which empty cell** receives the new tile when there are multiple vacant indices. **`maxExclusive` must be positive**; callers pass `emptyCellCount`. Throws **`ArgumentOutOfRangeException`** if violated (in `SystemRandom`). |
+| Method | Signature | Specification |
+|--------|-----------|---------------|
+| `NextDouble` | `double NextDouble(double maxExclusive)` | Contract parameter **`maxExclusive`** documents an upper bound for scaling; **`SystemRandom`** currently forwards **`Random.Shared.NextDouble()`** (**uniform in \[0, 1)**). Used for spawn probability thresholds (`RollSpawnTileValue` compares against `SpawnTwoProbability`). |
+| `Next` | `int Next(int maxExclusive)` | Returns a pseudo-random **integer in \[0, maxExclusive)** (uniform via `Random.Shared.Next`). Used to pick **which empty cell** receives the new tile when there are multiple vacant indices. **`maxExclusive` must be positive**; callers pass `emptyCellCount`. Throws **`ArgumentOutOfRangeException`** if violated (in `SystemRandom`). |
 
 #### `SystemRandom` (`Domain/Rules`)
 
 | Aspect | Detail |
 |--------|--------|
 | **Namespace** | `_2048_Infinity_Merge.Domain.Rules` |
-| **Methods** | `Next(int maxExclusive)` — validates argument then delegates to **`Random.Shared.Next`**. `NextDouble(double maxExclusive)` — validates argument then returns **`Random.Shared.NextDouble()`** (**\[0, 1)**). |
+
+##### `SystemRandom` — method specifications
+
+| Method | Signature | Specification |
+|--------|-----------|---------------|
+| `Next` | `int Next(int maxExclusive)` | Validates **`maxExclusive > 0`**, then delegates to **`Random.Shared.Next`** (**uniform in \[0, maxExclusive)**). Throws **`ArgumentOutOfRangeException`** if violated. |
+| `NextDouble` | `double NextDouble(double maxExclusive)` | Validates argument then returns **`Random.Shared.NextDouble()`** (**uniform in \[0, 1)**); **`maxExclusive`** documents scaling intent for callers. |
 
 #### `IIapService`
 
 Owns **store-backed entitlement** for purchases defined in product scope (e.g. **Remove Ads**). Application/UI call these APIs; Domain stays unaware of Google Play / App Store types.
 
-| Member | Behaviour |
-|--------|-----------|
-| `bool AdsRemoved { get; }` | **Cached entitlement flag**: `true` if the user has a valid **remove-ads** purchase (or equivalent product). Updated after successful purchase or after **`RestorePurchasesAsync`**. Persistence of raw receipts may live in External, but this property is what the rest of the app checks before showing ads. |
-| `Task PurchaseRemoveAdsAsync(CancellationToken cancellationToken = default)` | Starts the **platform purchase UI** for the remove-ads product. Completes when the dialog flow finishes: implementation should surface success/failure via completion or documented exceptions; on success, sets entitlement so **`AdsRemoved`** becomes `true`. Does nothing redundant if already entitled (typical: fast-path success). |
-| `Task RestorePurchasesAsync(CancellationToken cancellationToken = default)` | Asks the store to **re-send purchased SKUs** (fresh install, reinstall, new device). Updates **`AdsRemoved`** when a matching entitlement is found. |
+| Member | Signature | Specification |
+|--------|-----------|---------------|
+| `AdsRemoved` | `bool AdsRemoved { get; }` | **Cached entitlement flag**: `true` if the user has a valid **remove-ads** purchase (or equivalent product). Updated after successful purchase or after **`RestorePurchasesAsync`**. Persistence of raw receipts may live in External, but this property is what the rest of the app checks before showing ads. |
+| `PurchaseRemoveAdsAsync` | `Task PurchaseRemoveAdsAsync(CancellationToken cancellationToken = default)` | Starts the **platform purchase UI** for the remove-ads product. Completes when the dialog flow finishes: implementation should surface success/failure via completion or documented exceptions; on success, sets entitlement so **`AdsRemoved`** becomes `true`. Does nothing redundant if already entitled (typical: fast-path success). |
+| `RestorePurchasesAsync` | `Task RestorePurchasesAsync(CancellationToken cancellationToken = default)` | Asks the store to **re-send purchased SKUs** (fresh install, reinstall, new device). Updates **`AdsRemoved`** when a matching entitlement is found. |
 
 **External implementation:** Store-specific adapter classes (e.g. wrapping billing APIs per platform), registered in DI composition root — **not** referenced by Domain.
 
@@ -703,12 +726,12 @@ Owns **store-backed entitlement** for purchases defined in product scope (e.g. *
 
 Controls **when** and **how** ads appear (banner, interstitial, rewarded — whatever is in scope). Must respect **`IIapService.AdsRemoved`** and offline/safety policies inside the adapter.
 
-| Member | Behaviour |
-|--------|-----------|
-| `bool ShouldShowAds { get; }` | **`false`** when ads must not run — e.g. user purchased remove-ads, parental/policy gate, or SDK unavailable. UI (`BannerAds.razor`, etc.) and Application consult this before loading creatives. |
-| `void PrepareInterstitial()` | **Warm up** ad inventory early (e.g. after game over is likely) so `ShowInterstitial` has creative ready; implementations may no-op if interstitials are out of scope. |
-| `void ShowInterstitial(Action? onDismissed = null)` | Shows a **full-screen interstitial** when ready; invokes **`onDismissed`** after the user closes the ad or if show fails/skipped (exact guarantees documented per adapter — typically fire once per logical show attempt). |
-| `Task<bool> ShowRewardedVideoAsync(CancellationToken cancellationToken = default)` | Optional pattern for **rewarded** placement: returns **`true`** only if the user **fully watched** the video and the SDK grants reward; **`false`** if skipped, failed, or unavailable. Application maps result to in-game benefit if needed. |
+| Member | Signature | Specification |
+|--------|-----------|---------------|
+| `ShouldShowAds` | `bool ShouldShowAds { get; }` | **`false`** when ads must not run — e.g. user purchased remove-ads, parental/policy gate, or SDK unavailable. UI (`BannerAds.razor`, etc.) and Application consult this before loading creatives. |
+| `PrepareInterstitial` | `void PrepareInterstitial()` | **Warm up** ad inventory early (e.g. after game over is likely) so `ShowInterstitial` has creative ready; implementations may no-op if interstitials are out of scope. |
+| `ShowInterstitial` | `void ShowInterstitial(Action? onDismissed = null)` | Shows a **full-screen interstitial** when ready; invokes **`onDismissed`** after the user closes the ad or if show fails/skipped (exact guarantees documented per adapter — typically fire once per logical show attempt). |
+| `ShowRewardedVideoAsync` | `Task<bool> ShowRewardedVideoAsync(CancellationToken cancellationToken = default)` | Optional pattern for **rewarded** placement: returns **`true`** only if the user **fully watched** the video and the SDK grants reward; **`false`** if skipped, failed, or unavailable. Application maps result to in-game benefit if needed. |
 
 **External implementation:** Ad-network SDK wrapper(s); keeps Domain free of vendor namespaces.
 
