@@ -23,7 +23,8 @@
   - [5.3. Activity — Slide & Merge Algorithm](#53-activity--slide--merge-algorithm)
   - [5.4. Sequence — Save High Score (Game Over)](#54-sequence--save-high-score-game-over)
 - [6. Class Specification](#6-class-specification)
-  - [6.1. `GameEngine` (Domain)](#61-gameengine-domain)
+  - [6.1. `IGameEngine` & `GameEngine` (Domain)](#61-igameengine--gameengine-domain)
+  - [6.1.1. `IMoving` & `Moving` (slide / merge)](#611-imoving--moving-slide--merge)
   - [6.2. `Board` (Domain)](#62-board-domain)
   - [6.3. `Tile` (Domain)](#63-tile-domain)
   - [6.4. `MoveResult` & `MergeInfo` (Domain)](#64-moveresult--mergeinfo-domain)
@@ -67,7 +68,7 @@ The application follows a **layered (Clean-Architecture-inspired)** style, combi
 |-------|----------------|-----------|
 | **Presentation** *(FE)* | Razor components, layouts, CSS, JS interop. Renders state and dispatches user actions. | Application |
 | **Application** *(BE)* | Use-case orchestration and game flow (`GameSessionService`). Holds in-memory state and raises UI events. | Domain, Persistence, External |
-| **Domain** *(BE)* | Pure game rules: `Board`, `Tile`, `GameEngine`, `MoveResult`, enums (`GameMode`, `GridSize`, `Direction`). No I/O. | — |
+| **Domain** *(BE)* | Pure game rules: `Board`, `Tile`, `IGameEngine` (`GameEngine`), `MoveResult`, enums (`GameMode`, `GridSize`, `Direction`). No I/O. | — |
 | **Persistence** *(BE)* | Business persistence services/repositories for high score, settings, and save game state. Owns key schema and serialization. | Domain contracts, External adapters |
 | **External** *(BE)* | Adapters to platform / third-party SDKs: persistence implementation, timer implementation, random implementation, IAP and ads providers. | Domain contracts |
 
@@ -88,7 +89,7 @@ flowchart TB
     end
 
     subgraph Domain["Domain Layer (BE)"]
-        DomainCore["Game Engine<br/>(GameEngine, Board, Tile, MoveResult, enums)"]
+        DomainCore["Game Engine<br/>(IGameEngine / GameEngine, Board, Tile, MoveResult, enums)"]
     end
 
     subgraph Persistence["Persistence Layer (BE)"]
@@ -163,7 +164,7 @@ flowchart TB
 flowchart TB
     subgraph BE["📦 InfinityMergeApp.Core (BE — logical)"]
         AppPkg["📦 Application<br/>• GameSessionService"]
-        DomainPkg["📦 Domain<br/>• GameEngine<br/>• Board, Tile<br/>• MoveResult<br/>• GameMode, GridSize, Direction (enums)<br/>• Contracts: IStorage, IGameTimer, ISystemRandom,<br/>IIapService, IAdsService"]
+        DomainPkg["📦 Domain<br/>• IGameEngine, GameEngine<br/>• IMoving, Moving<br/>• Board, Tile<br/>• MoveResult<br/>• GameMode, GridSize, Direction (enums)<br/>• Contracts: IGameEngine, IMoving, IStorage, IGameTimer, ISystemRandom,<br/>IIapService, IAdsService"]
         PersistPkg["📦 Persistence<br/>• HighScoreService<br/>• SettingsService<br/>• SaveGameService"]
         InfraPkg["📦 External<br/>• PreferencesStorage<br/>• GameTimer<br/>• SystemRandom<br/>• IapService (store SDK)<br/>• AdsService (ad SDK)"]
     end
@@ -182,7 +183,7 @@ flowchart TB
     subgraph App["InfinityMergeApp"]
         FE["📦 Components (FE)<br/>Pages • Items • Layout • wwwroot"]
         AppL["📦 Application<br/>GameSessionService"]
-        Dom["📦 Domain<br/>GameEngine • Board • Tile • MoveResult • Enums"]
+        Dom["📦 Domain<br/>IGameEngine / GameEngine • IMoving / Moving • Board • Tile • MoveResult • Enums"]
         Per["📦 Persistence<br/>HighScoreService • SettingsService • SaveGameService"]
         Inf["📦 External<br/>PreferencesStorage • Timer • Random • IAP • Ads"]
     end
@@ -211,13 +212,13 @@ flowchart TB
 | `Tile` | `record struct` | `Value : int`, `Id : Guid` | Value is always a power of 2 (BR-03). `Id` enables UI animation tracking across moves. |
 | `Board` | `class` | `Size : int`, `Cells : Tile[,]?` | `Cells` may be **`null`** before init; inside the array, **`default(Tile)`** (`Value == 0`) acts as empty until spawn assigns values (see §6.2). |
 | `MergeInfo` | `record` | `TileId : Guid`, `FromRow/Col`, `ToRow/Col : int`, `IsMerged : bool`, `ValueAfter : int` | One slide/merge step for UI animation; listed inside `MoveResult.Merges`. |
-| `MoveResult` | `record` | `Moved : bool`, `Merges : IReadOnlyList<MergeInfo>?`, `Score : int`, `IsGameOver : bool` | Returned by `GameEngine.Move(...)` (BR-07, BR-08). `Score` is the delta gained on this move. |
+| `MoveResult` | `record` | `Moved : bool`, `Merges : IReadOnlyList<MergeInfo>?`, `Score : int`, `IsGameOver : bool` | Returned by `IGameEngine.Move(...)` (BR-07, BR-08). `Score` is the delta gained on this move. |
 | `GameState` | `class` | `Board` (required), `Mode`, `Score`, `RemainingTime?`, `IsPaused` | Live state of the current session. `RemainingTime` is used only in Time Mode. |
 | `HighScoreKey` | `record` | `Mode : GameMode`, `GridSize : GridSize` | Key for high-score lookup per (mode × grid size) — BR-10. |
 
 #### Domain enums
 
-Enums are **not** listed in the entity table above; they are shared primitive types used inside those entities and by `GameEngine`.
+Enums are **not** listed in the entity table above; they are shared primitive types used inside those entities and by `IGameEngine`.
 
 **`GameMode`**
 
@@ -232,7 +233,7 @@ Enums are **not** listed in the entity table above; they are shared primitive ty
 
 **`Direction`**
 
-- `Up`, `Down`, `Left`, `Right` — swipe / keyboard input for `GameEngine.Move(board, direction)`.
+- `Up`, `Down`, `Left`, `Right` — swipe / keyboard input for `IGameEngine.Move(board, direction)`.
 
 ### 4.2. Persistence (No Database)
 
@@ -274,7 +275,7 @@ sequenceDiagram
     participant Home as Home.razor
     participant Sess as GameSessionService
     participant HS as HighScoreService
-    participant Eng as GameEngine
+    participant Eng as IGameEngine
     participant Game as Game.razor
 
     P->>Home: tap a Mode card (e.g. Classic 4x4)
@@ -296,7 +297,7 @@ sequenceDiagram
     actor P as Player
     participant Game as Game.razor
     participant Sess as GameSessionService
-    participant Eng as GameEngine
+    participant Eng as IGameEngine
 
     P->>Game: swipe / arrow key
     Game->>Sess: Move(direction)
@@ -369,30 +370,92 @@ sequenceDiagram
 
 > Only the non-trivial classes are detailed below. Razor components have UI-only logic and are described by their `.razor` files; only their **public bindable properties** are listed.
 
-### 6.1. `GameEngine` (Domain)
+### 6.1. `IGameEngine` & `GameEngine` (Domain)
 
-| Aspect | Detail |
-|--------|--------|
-| **Namespace** | `_2048_Infinity_Merge.Domain.Rules` |
-| **Responsibility** | Board creation, spawn, game-over probe; **slide/merge** delegated to **`IMoving`** (default **`Moving`**). **No I/O.** |
-| **Construction** | `GameEngine(IMoving? moving = null)` — uses `new Moving()` when `moving` is omitted (tests may inject a fake). |
-| **Constants / fields** | `private const double SpawnTwoProbability = 0.5`; `private readonly IMoving _moving`. |
-| **Implements** | BR-01 … BR-09 (target). |
+**`IGameEngine`** (`Domain/Interfaces`) — Application and tests depend on this **port**; DI registers `GameEngine` as the default implementation.
 
 | Member | Signature | Behaviour (current codebase) |
 |--------|-----------|------------------------------|
 | `CreateBoard` | `Board CreateBoard(GridSize size)` | Allocates `Board` with `Size = (int)size` and `Cells = new Tile[edgeLength, edgeLength]` (all cells initially `default(Tile)`). |
-| `RollSpawnTileValue` | `static int RollSpawnTileValue(ISystemRandom rng)` | Returns **2** if `rng.NextDouble(1.0) < SpawnTwoProbability`, else **4**. |
+| `RollSpawnTileValue` | `int RollSpawnTileValue(ISystemRandom rng)` | Returns **2** if `rng.NextDouble(1.0) < SpawnTwoProbability`, else **4** (implementation uses **0.5** for **2** vs **4**). |
 | `RandomSpawnTile` | `Board RandomSpawnTile(Board board, ISystemRandom rng)` | Counts cells with `Tile.Value == 0`, picks index `rng.Next(emptyCount)`, sets that cell to `new Tile(RollSpawnTileValue(rng), Guid.NewGuid())`. If grid is full, returns `board` unchanged. Requires `Cells` square `Size×Size`. |
-| `Move` | `MoveResult Move(Board board, Direction direction)` | Delegates slide+merge to **`_moving.TryApplyMove`**. Mutates `board.Cells`; fills `Merges` / `Score`; `IsGameOver` = `!HasAnyValidMove(board)` after the move. |
-| `HasAnyValidMove` | `bool HasAnyValidMove(Board board)` | **`true`** if cloning the board and calling **`_moving.TryApplyMove`** in **any** `Direction` would change the grid. |
+| `Move` | `MoveResult Move(Board board, Direction direction)` | Delegates slide+merge to **`IMoving.TryApplyMove`** on the implementation. Mutates `board.Cells`; fills `Merges` / `Score`; `IsGameOver` = `!HasAnyValidMove(board)` after the move. |
+| `HasAnyValidMove` | `bool HasAnyValidMove(Board board)` | **`true`** if cloning the board and calling **`IMoving.TryApplyMove`** in **any** `Direction` would change the grid. |
 
-#### `IMoving` / `Moving` (slide–merge)
+**`GameEngine`** (`Domain/Rules`) — `sealed class GameEngine : IGameEngine`
 
-| Kind | Detail |
-|------|--------|
-| **`IMoving`** | Contract in `Domain/Interfaces`: `TryApplyMove`, `ApplyAllRowsLeft` / `ApplyAllRowsRight`, `ApplyAllColsUp` / `ApplyAllColsDown`, `CompressRowLeft` / `CompressRowRight`, `CompressColUp` / `CompressColDown`, `IsCellEmpty`. |
-| **`Moving`** | Sealed implementation in `Domain/Rules`; `TryApplyMove` dispatches to the four `ApplyAll*` methods, each iterating rows/columns and calling the corresponding `Compress*` helpers. |
+| Aspect | Detail |
+|--------|--------|
+| **Namespace** | `_2048_Infinity_Merge.Domain.Rules` |
+| **Responsibility** | Implements **`IGameEngine`**: board creation, spawn, game-over probe; **slide/merge** delegated to **`IMoving`** (default **`Moving`**). **No I/O.** |
+| **Construction** | `GameEngine(IMoving? moving = null)` — uses `new Moving()` when `moving` is omitted (tests may inject a fake). |
+| **Constants / fields** | `private const double SpawnTwoProbability = 0.5`; `private readonly IMoving _moving`. |
+| **Implements** | `IGameEngine`; BR-01 … BR-09 (target). |
+
+### 6.1.1. `IMoving` & `Moving` (slide / merge)
+
+Source: **`Domain/Interfaces/IMoving.cs`**, implementation **`Domain/Rules/Moving.cs`** (sealed). **`GameEngine`** implements **`IGameEngine`** and depends on **`IMoving`** only; default **`new Moving()`** in `GameEngine` ctor.
+
+#### `IMoving` — contract overview
+
+`IMoving` is the **Domain port** for classic **2048 slide + merge** on a square `Tile[,]`. Callers (typically `GameEngine`) own the grid and pass a scratch **`merges`** list plus a **`score`** accumulator. Implementations **mutate** `cells` in place and **append** to `merges`; they **add** to `score` only when two tiles **merge** (the merged face value — i.e. doubled value — is added once per merge pair).
+
+| Convention | Detail |
+|------------|--------|
+| **Indexing** | `cells[row, col]` with **`row`**, **`col`** ∈ **`[0, n)`**; **`n`** is the edge length (must match both dimensions of `cells`). |
+| **`merges`** | Caller-supplied list; methods **append** `MergeInfo` entries (slides and merges). Caller may **`Clear()`** before a move if a fresh trace is required. |
+| **`score`** | **`ref int`**; increased by the **post-merge tile value** (`oldValue * 2`) for each merge performed in the scope of the call. |
+| **Return value** | Line helpers return **`true`** iff that row/column’s tiles **changed** (value or `Tile.Id`). Aggregate helpers return **`true`** if **any** invoked line returned **`true`**. |
+
+#### `IMoving` — method specifications
+
+**`TryApplyMove`** — `bool TryApplyMove(Tile[,] cells, int n, Direction direction, List<MergeInfo> merges, ref int score)`
+
+Single **entry point** for one move direction. Selects the row/column sweep based on **`direction`**: **`Left`** → `ApplyAllRowsLeft`, **`Right`** → `ApplyAllRowsRight`, **`Up`** → `ApplyAllColsUp`, **`Down`** → `ApplyAllColsDown`. **`cells`** must be allocated **`n × n`**. Returns whether **any** cell on the board changed. Unknown enum values: reference implementation throws **`ArgumentOutOfRangeException`**.
+
+**`ApplyAllRowsLeft`** — `bool ApplyAllRowsLeft(Tile[,] cells, int n, List<MergeInfo> merges, ref int score)`
+
+For each row index **`r`** from **`0`** to **`n − 1`**, calls **`CompressRowLeft(cells, r, n, merges, ref score)`**. Returns **`true`** if **at least one** row reported a change (OR-combination of per-row results).
+
+**`ApplyAllRowsRight`** — `bool ApplyAllRowsRight(Tile[,] cells, int n, List<MergeInfo> merges, ref int score)`
+
+Same as **`ApplyAllRowsLeft`**, but uses **`CompressRowRight`** for every row (slide/merge toward the **high** column index).
+
+**`ApplyAllColsUp`** — `bool ApplyAllColsUp(Tile[,] cells, int n, List<MergeInfo> merges, ref int score)`
+
+For each column index **`c`** from **`0`** to **`n − 1`**, calls **`CompressColUp(cells, c, n, merges, ref score)`**. Returns **`true`** if any column changed.
+
+**`ApplyAllColsDown`** — `bool ApplyAllColsDown(Tile[,] cells, int n, List<MergeInfo> merges, ref int score)`
+
+Same as **`ApplyAllColsUp`**, but uses **`CompressColDown`** for every column (slide/merge toward **row `n − 1`** — the “down” wall).
+
+**`CompressRowLeft`** — `bool CompressRowLeft(Tile[,] cells, int r, int n, List<MergeInfo> merges, ref int score)`
+
+Operates on **one row** **`r`**. Scans columns **`0 … n−1`**, collects non-empty tiles in order. Applies **one leftward pass**: adjacent equal non-zero values merge into a single tile with **doubled** value and a **new** `Guid`; both source tiles get **`MergeInfo`** with **`IsMerged == true`**; **`score`** increases by that merged value. Non-merging tiles slide toward column **`0`**; a **`MergeInfo`** with **`IsMerged == false`** is emitted when a tile’s column index changes. Vacated cells become **`default(Tile)`** (`Value == 0`). Returns **`true`** if any **`cells[r, c]`** differs from the row snapshot taken at entry (value or **`Id`**).
+
+**`CompressRowRight`** — `bool CompressRowRight(Tile[,] cells, int r, int n, List<MergeInfo> merges, ref int score)`
+
+Same merge semantics as **`CompressRowLeft`**, but the line is collected **right to left** (`n−1` down to **`0`**) and packed toward column **`n − 1`**; trailing columns are cleared with **`default(Tile)`**.
+
+**`CompressColUp`** — `bool CompressColUp(Tile[,] cells, int c, int n, List<MergeInfo> merges, ref int score)`
+
+Operates on **one column** **`c`**. Scans rows **`0 … n−1`** top to bottom, collects non-empty tiles, then applies the same **2048** merge-and-pack rules along the column toward **row `0`**. **`MergeInfo`** uses fixed **`c`** for **`FromCol`/`ToCol`** and varying row indices for **`FromRow`/`ToRow`**. Returns **`true`** if that column changed.
+
+**`CompressColDown`** — `bool CompressColDown(Tile[,] cells, int c, int n, List<MergeInfo> merges, ref int score)`
+
+Same as **`CompressColUp`**, but collects tiles **bottom to top** and packs toward **row `n − 1`**; rows above the packed result are cleared with **`default(Tile)`**.
+
+**`IsCellEmpty`** — `bool IsCellEmpty(Tile tile)`
+
+Pure predicate: returns **`true`** iff **`tile.Value == 0`**. Used to skip empty cells when building a line and to align with board “empty cell” conventions elsewhere (spawn, full-grid checks).
+
+#### `Moving` — implementation notes
+
+| Aspect | Detail |
+|--------|--------|
+| **Kind** | `sealed class Moving : IMoving` |
+| **Merge rule** | Along each line, **only adjacent equal values** merge in one sweep; each tile merges **at most once** per line per move (classic 2048). |
+| **`MergeInfo`** | `FromCol` / `FromRow` / `ToCol` / `ToRow` use grid indices; **`IsMerged`** is **`true`** when two tiles combine; **`ValueAfter`** is the face value after the step (doubled on merge). |
 
 ### 6.2. `Board` (Domain)
 
@@ -492,7 +555,7 @@ sequenceDiagram
 
 | Members | Meaning |
 |---------|---------|
-| `Up`, `Down`, `Left`, `Right` | Player swipe / key direction for `GameEngine.Move`. |
+| `Up`, `Down`, `Left`, `Right` | Player swipe / key direction for `IGameEngine.Move`. |
 
 #### `GameMode` (`enum`)
 
@@ -505,7 +568,7 @@ sequenceDiagram
 
 | Aspect | Detail |
 |--------|--------|
-| **Responsibility** | Owns the live `GameState`, drives the game loop, raises `StateChanged` for the UI. Coordinates `GameEngine`, `IGameTimer`, `HighScoreService`. |
+| **Responsibility** | Owns the live `GameState`, drives the game loop, raises `StateChanged` for the UI. Coordinates `IGameEngine`, `IGameTimer`, `HighScoreService`. |
 | **Lifetime** | Singleton (registered in `MauiProgram`). |
 | **Public API** | `event Action StateChanged`<br/>`GameState Current { get; }`<br/>`void StartNewGame(GameMode mode, GridSize size)`<br/>`void Move(Direction direction)`<br/>`void Pause()` / `void Resume()`<br/>`void QuitToHome()` |
 | **Implements** | UC-01, UC-02, UC-03 |
@@ -573,7 +636,9 @@ Dependency direction: **Persistence → `IStorage` (Domain)** and **External →
 
 | Contract (Domain) | Typical External implementation | Detailed spec |
 |-------------------|----------------------------------|---------------|
+| `IGameEngine` | `GameEngine` (sealed, Domain/Rules) | §6.1 |
 | `IGameTimer` | `GameTimer` (reference impl in Domain/Rules; MAUI `DispatcherTimer` adapter optional) | §6.12 |
+| `IMoving` | `Moving` (sealed, Domain/Rules) | §6.1.1 |
 | `ISystemRandom`, `IIapService`, `IAdsService` | `SystemRandom`, store IAP adapter, ad-network adapter | §6.13 |
 
 ### 6.12. `IGameTimer` & `GameTimer` (Domain contract + implementation)
@@ -608,7 +673,7 @@ These interfaces are **business-facing ports**: Domain/Application describe *wha
 
 #### `ISystemRandom`
 
-Used by **`GameEngine.RandomSpawnTile`** / **`RollSpawnTileValue`** (and any future stochastic rule): choose among empty cells and implement **spawn weights** (currently **50%** tile **2**, **50%** tile **4** via `RollSpawnTileValue`).
+Used by **`IGameEngine.RandomSpawnTile`** / **`RollSpawnTileValue`** (and any future stochastic rule): choose among empty cells and implement **spawn weights** (currently **50%** tile **2**, **50%** tile **4** via `RollSpawnTileValue`).
 
 | Member | Behaviour |
 |--------|-----------|

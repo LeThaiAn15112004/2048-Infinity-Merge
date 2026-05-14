@@ -18,9 +18,11 @@ public static class MauiProgram
 			});
 
 		builder.Services.AddMauiBlazorWebView();
-		
-	//Dependencies
-	builder.Services.AddSingleton<ISystemRandom, SystemRandom>();
+
+		// Dependencies
+		builder.Services.AddSingleton<ISystemRandom, SystemRandom>();
+		builder.Services.AddSingleton<IMoving, Moving>();
+		builder.Services.AddSingleton<IGameEngine, GameEngine>();
 
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();

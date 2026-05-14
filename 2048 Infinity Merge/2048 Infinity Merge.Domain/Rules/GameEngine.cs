@@ -5,7 +5,7 @@ using _2048_Infinity_Merge.Domain.Models.Entities;
 
 namespace _2048_Infinity_Merge.Domain.Rules;
 
-public class GameEngine
+public sealed class GameEngine : IGameEngine
 {
     private readonly IMoving _moving;
 
@@ -26,11 +26,8 @@ public class GameEngine
         };
     }
 
-    /// <summary>
-    /// Spawn weights: <see cref="SpawnTwoProbability"/> of the [0, 1) interval → tile <b>2</b>, remainder → tile <b>4</b>
-    /// (<see cref="ISystemRandom.NextDouble"/> is uniform in [0, 1)).
-    /// </summary>
-    public static int RollSpawnTileValue(ISystemRandom rng) =>
+    /// <inheritdoc />
+    public int RollSpawnTileValue(ISystemRandom rng) =>
         rng.NextDouble(1.0) < SpawnTwoProbability ? 2 : 4;
 
     /// <summary>
