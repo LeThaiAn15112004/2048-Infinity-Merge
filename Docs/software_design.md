@@ -97,7 +97,7 @@ flowchart TB
     end
 
     subgraph External["External Layer (BE)"]
-        Infra["Adapters<br/>(IStorage -> MAUI Preferences,<br/>IGameTimer, ISystemRandom,<br/>IIapService, IAdsService)"]
+        Infra["Adapters<br/>(IPreferencesStorage -> MAUI Preferences,<br/>IGameTimer, ISystemRandom,<br/>IIapService, IAdsService)"]
     end
 
     Presentation --> Application
@@ -164,7 +164,7 @@ flowchart TB
 flowchart TB
     subgraph BE["📦 InfinityMergeApp.Core (BE — logical)"]
         AppPkg["📦 Application<br/>• GameSessionService"]
-        DomainPkg["📦 Domain<br/>• IGameEngine, GameEngine<br/>• IMoving, Moving<br/>• Board, Tile<br/>• MoveResult<br/>• GameMode, GridSize, Direction (enums)<br/>• Contracts: IGameEngine, IMoving, IStorage, IGameTimer, ISystemRandom,<br/>IIapService, IAdsService"]
+        DomainPkg["📦 Domain<br/>• IGameEngine, GameEngine<br/>• IMoving, Moving<br/>• Board, Tile<br/>• MoveResult<br/>• GameMode, GridSize, Direction (enums)<br/>• Contracts: IGameEngine, IMoving, IPreferencesStorage, IGameTimer, ISystemRandom,<br/>IIapService, IAdsService"]
         PersistPkg["📦 Persistence<br/>• HighScoreService<br/>• SettingsService<br/>• SaveGameService"]
         InfraPkg["📦 External<br/>• PreferencesStorage<br/>• GameTimer<br/>• SystemRandom<br/>• IapService (store SDK)<br/>• AdsService (ad SDK)"]
     end
@@ -261,7 +261,7 @@ All persistent data is stored via **`Microsoft.Maui.Storage.Preferences`** — a
 **Why no DB:**
 - Total data footprint is < 1 KB and only key-value access pattern.
 - `Preferences` is built into MAUI on every target platform — no extra dependency, no schema migration.
-- If richer needs arise later (replays, achievements), the `IStorage` implementation can be swapped (e.g., **SQLite** via `sqlite-net-pcl`) without touching Application use-cases or Domain rules.
+- If richer needs arise later (replays, achievements), the `IPreferencesStorage` implementation can be swapped (e.g., **SQLite** via `sqlite-net-pcl`) without touching Application use-cases or Domain rules.
 
 ---
 
@@ -351,7 +351,7 @@ flowchart TD
 sequenceDiagram
     participant Sess as GameSessionService
     participant HS as HighScoreService
-    participant St as IStorage<br/>(PreferencesStorage)
+    participant St as IPreferencesStorage<br/>(PreferencesStorage)
 
     Sess->>HS: SaveIfBetter(mode, size, score)
     HS->>St: Get<int>($"highscore.{mode}.{size}")
@@ -562,7 +562,7 @@ Source: **`Domain/Interfaces/IMoving.cs`**, implementation **`Domain/Rules/Movin
 | Aspect | Detail |
 |--------|--------|
 | **Responsibility** | Read & write high scores. |
-| **Depends on** | `IStorage` |
+| **Depends on** | `IPreferencesStorage` |
 | **Implements** | BR-10 |
 
 #### `HighScoreService` — method specifications
@@ -577,14 +577,14 @@ Source: **`Domain/Interfaces/IMoving.cs`**, implementation **`Domain/Rules/Movin
 | Aspect | Detail |
 |--------|--------|
 | **Responsibility** | Read & write user settings. |
-| **Depends on** | `IStorage` |
+| **Depends on** | `IPreferencesStorage` |
 | **Implements** | UC-04 |
 
 #### `SettingsService` — member specifications
 
 | Member | Signature | Specification |
 |--------|-----------|---------------|
-| `SoundEnabled` | `bool SoundEnabled { get; set; }` | Backed by `IStorage` key `settings.sound` (§4.2). |
+| `SoundEnabled` | `bool SoundEnabled { get; set; }` | Backed by `IPreferencesStorage` key `settings.sound` (§4.2). |
 | `Theme` | `string Theme { get; set; }` | Theme identifier; key `settings.theme`. |
 | `TimeModeDuration` | `TimeSpan TimeModeDuration { get; set; }` | Default round length for Time Mode; persisted as seconds (`settings.timeMode.duration`). |
 | `SettingsChanged` | `event Action SettingsChanged` | Raised after a setting write so UI can refresh. |
@@ -594,14 +594,14 @@ Source: **`Domain/Interfaces/IMoving.cs`**, implementation **`Domain/Rules/Movin
 | Aspect | Detail |
 |--------|--------|
 | **Responsibility** | Save and restore in-progress game state (board, mode, score, remaining time). |
-| **Depends on** | `IStorage` |
+| **Depends on** | `IPreferencesStorage` |
 | **Notes** | Keeps resume-flow persistence outside Domain and Application orchestration. |
 
 #### `SaveGameService` — method specifications
 
 | Method | Signature | Specification |
 |--------|-----------|---------------|
-| `Save` | `void Save(GameState state)` | Serializes in-progress state to `IStorage` keys in §4.2 (`savegame.*`). |
+| `Save` | `void Save(GameState state)` | Serializes in-progress state to `IPreferencesStorage` keys in §4.2 (`savegame.*`). |
 | `TryRestore` | `GameState? TryRestore()` | Returns a hydrated `GameState` if valid save data exists; otherwise **`null`**. |
 | `Clear` | `void Clear()` | Removes save-game keys so the next session does not auto-resume stale data. |
 
@@ -613,13 +613,13 @@ This section explains how **ports** (interfaces in **Domain**) connect to **adap
 
 - **Domain** defines *what* the game needs from the outside world (read/write key-value storage, random numbers, timers, IAP/ads), without referencing MAUI or vendor SDKs.
 - **External** provides *how* those needs are satisfied on each platform (e.g. `Preferences`, OS timers, ad SDKs).
-- **Persistence** services (`HighScoreService`, `SettingsService`, `SaveGameService`) depend on **`IStorage`** — they call the interface; `PreferencesStorage` supplies the real backing store.
+- **Persistence** services (`HighScoreService`, `SettingsService`, `SaveGameService`) depend on **`IPreferencesStorage`** — they call the interface; `PreferencesStorage` supplies the real backing store.
 
-Dependency direction: **Persistence → `IStorage` (Domain)** and **External → `IStorage` (implements)**. Domain does **not** reference External.
+Dependency direction: **Persistence → `IPreferencesStorage` (Domain)** and **External → `IPreferencesStorage` (implements)**. Domain does **not** reference External.
 
-#### `IStorage` (Domain contract)
+#### `IPreferencesStorage` (Domain contract)
 
-`IStorage` is the abstraction for **local key/value persistence** (high scores, settings, save-game payloads).
+`IPreferencesStorage` is the abstraction for **local key/value persistence** (high scores, settings, save-game payloads).
 
 | Method | Signature | Specification |
 |--------|-----------|---------------|
@@ -631,11 +631,11 @@ Dependency direction: **Persistence → `IStorage` (Domain)** and **External →
 
 | Class | Role |
 |-------|------|
-| `PreferencesStorage` | Implements `IStorage` using **`Microsoft.Maui.Storage.Preferences`** (target). **`*.cs` may temporarily live under `Domain/Rules`** as a stub until the adapter is moved exclusively to **External** + DI wiring from **`Merge.App`**. |
+| `PreferencesStorage` | Implements `IPreferencesStorage` using **`Microsoft.Maui.Storage.Preferences`** (target). **`*.cs` may temporarily live under `Domain/Rules`** as a stub until the adapter is moved exclusively to **External** + DI wiring from **`Merge.App`**. |
 
-**Who uses `IStorage`:** Persistence layer services listed in §6.8–§6.10 inject `IStorage`; they choose concrete keys and types (`int`, `bool`, `string`, serialized board JSON, etc.) as described in §4.2.
+**Who uses `IPreferencesStorage`:** Persistence layer services listed in §6.8–§6.10 inject `IPreferencesStorage`; they choose concrete keys and types (`int`, `bool`, `string`, serialized board JSON, etc.) as described in §4.2.
 
-**Swap:** The implementation behind `IStorage` may later change (e.g. SQLite) without changing Domain contracts or Application orchestration — only DI registration and the External adapter change.
+**Swap:** The implementation behind `IPreferencesStorage` may later change (e.g. SQLite) without changing Domain contracts or Application orchestration — only DI registration and the External adapter change.
 
 #### Other Domain contracts (see following subsections)
 
