@@ -1,4 +1,4 @@
-# Software Requirement — 2048 Infinity Merge
+# Software Requirement - 2048 Infinity Merge
 
 ## Table of Contents
 
@@ -12,27 +12,25 @@
 
 ## 1. Context Diagram
 
-The system is a single-player offline puzzle game. It interacts with only one external actor (the **Player**) and one external resource (the device's **Local Storage**) for persisting settings and high scores.
+The system is a single-player offline mobile puzzle game. It interacts with the **Player** and with device-local storage for settings, save state, and high scores.
 
 ```mermaid
 flowchart LR
     Player["Player"]
-    Storage["Local Storage<br/>(on device)"]
-    System(("<b>2048 Infinity<br/>Merge</b>"))
+    Storage["Device Local Storage<br/>(AsyncStorage / MMKV adapter)"]
+    System(("<b>2048 Infinity<br/>Merge</b><br/>React Native App"))
 
-    Player -- "swipe / tap / key input" --> System
+    Player -- "swipe / tap input" --> System
     System -- "UI updates, score, animations" --> Player
-    System -- "write settings, high scores" --> Storage
-    Storage -- "read settings, high scores" --> System
+    System -- "write settings, high scores, save game" --> Storage
+    Storage -- "read settings, high scores, save game" --> System
 ```
-
-> **Notation:** following the Yourdon / DeMarco convention — the **circle** in the center is the system (single process at context level), and the **rectangles** around it are external entities that interact with the system.
 
 | # | Entity | Type | Description |
 |---|--------|------|-------------|
-| 1 | Player | External actor | The end user who plays the game. |
-| 2 | 2048 Infinity Merge | System | The MAUI Blazor Hybrid application under development. |
-| 3 | Local Storage | External resource | Device-local persistence for settings and high scores. |
+| 1 | Player | External actor | The end user who plays the game on Android or iOS. |
+| 2 | 2048 Infinity Merge | System | The React Native mobile application under development. |
+| 3 | Device Local Storage | External resource | Device-local persistence for settings, high scores, and resumable game state. |
 
 ---
 
@@ -42,13 +40,17 @@ Main screens of the app and the navigation between them.
 
 ```mermaid
 flowchart TD
-    Home["Home<br/>(Game Mode List — 6 cards)<br/><i>Classic 4x4 / 5x5 / 6x6</i><br/><i>Time&nbsp;&nbsp;&nbsp;&nbsp;4x4 / 5x5 / 6x6</i><br/><i>+ each card shows its own high score</i>"]
-    Game["Game Screen<br/><i>(Pause shown as modal)</i>"]
-    GameOver["Game Over"]
+    Home["Home<br/>(Game Mode List - 6 cards)<br/><i>Classic 4x4 / 5x5 / 6x6</i><br/><i>Time 4x4 / 5x5 / 6x6</i><br/><i>each card shows its own high score</i>"]
+    Game["Game Screen<br/><i>board, score, timer, pause button</i>"]
+    Pause["Pause Modal"]
+    GameOver["Game Over Modal"]
     Settings["Settings"]
-    Help["Help<br/><i>(How to play)</i>"]
+    Help["Help<br/><i>How to play</i>"]
 
     Home -->|Tap a mode card| Game
+    Game -->|Tap pause| Pause
+    Pause -->|Resume| Game
+    Pause -->|Quit| Home
     Game -->|No valid move / time out| GameOver
     GameOver -->|Play Again| Game
     GameOver -->|Home| Home
@@ -58,13 +60,12 @@ flowchart TD
     Help --> Home
 ```
 
-> **Notes:**
-> - The Home screen **is** the game-mode list. There are **6 modes total**, one card per `(mode × grid size)` pair:
->   - **Classic 4x4**, **Classic 5x5**, **Classic 6x6**
->   - **Time 4x4**, **Time 5x5**, **Time 6x6**
-> - There is **no separate "Grid Size Select" screen and no separate "Mode Select" screen** — both choices are unified into a single mode card on Home.
-> - There is **no dedicated High Scores screen**. The high score for each mode is shown directly on its corresponding card on Home.
-> - **Pause** is **not a separate screen** — it is rendered as a **modal overlay** on top of the Game screen.
+Notes:
+
+- The Home screen is the game-mode list. There are 6 mode cards: Classic 4x4, Classic 5x5, Classic 6x6, Time 4x4, Time 5x5, and Time 6x6.
+- There is no separate grid-size selection screen in the current version.
+- High scores are shown directly on their corresponding Home cards.
+- Pause and Game Over are modal overlays, not full independent navigation roots.
 
 ---
 
@@ -77,9 +78,10 @@ flowchart LR
     subgraph System["2048 Infinity Merge"]
         UC1(("UC-01<br/>Start New Game"))
         UC2(("UC-02<br/>Play Game<br/>(Make Move)"))
-        UC3(("UC-03<br/>Pause / Resume<br/><i>(modal)</i>"))
+        UC3(("UC-03<br/>Pause / Resume"))
         UC4(("UC-04<br/>Adjust Settings"))
-        UC5(("UC-05<br/>View Help<br/>(How to Play)"))
+        UC5(("UC-05<br/>View Help"))
+        UC6(("UC-06<br/>Resume Saved Game"))
     end
 
     Player --- UC1
@@ -87,11 +89,10 @@ flowchart LR
     Player --- UC3
     Player --- UC4
     Player --- UC5
+    Player --- UC6
 
-    UC1 -. "&laquo;include&raquo;" .-> UC2
+    UC1 -. "include" .-> UC2
 ```
-
-> **Note:** *Viewing* high scores is **not** a separate use case — every high score is shown inline on its corresponding mode card on the **Home** screen (one card per `mode × grid size` combination). High scores are accumulated automatically as the player beats their previous best; there is **no manual reset** in the current version.
 
 ---
 
@@ -101,47 +102,56 @@ flowchart LR
 
 | Field | Description |
 |-------|-------------|
-| **Actor** | Player |
-| **Pre-condition** | The app is running and the Home screen is displayed. |
-| **Main flow** | 1. System displays the Home screen with **6 mode cards**: *Classic 4x4 / 5x5 / 6x6* and *Time 4x4 / 5x5 / 6x6*. Each card shows the current high score of that mode.<br/>2. Player taps one of the 6 mode cards.<br/>3. System initializes a new board of the chosen grid size with 2 starting tiles, configures the rules of the chosen mode (untimed for Classic, countdown timer for Time), and navigates to the Game screen. |
-| **Post-condition** | A new game session has started; UC-02 (Play Game) is active. |
+| Actor | Player |
+| Pre-condition | The app is running and the Home screen is displayed. |
+| Main flow | 1. System displays the Home screen with 6 mode cards. Each card shows the current high score for that mode and grid size.<br/>2. Player taps one card.<br/>3. System initializes a new board of the chosen grid size with 2 starting tiles.<br/>4. System configures the mode rules: untimed for Classic, countdown for Time.<br/>5. System navigates to or renders the Game screen. |
+| Post-condition | A new game session has started. |
 
 ### UC-02. Play Game (Make Move)
 
 | Field | Description |
 |-------|-------------|
-| **Actor** | Player |
-| **Pre-condition** | A game session is active and not paused. |
-| **Main flow** | 1. Player performs a directional input (swipe / arrow key) — Up / Down / Left / Right.<br/>2. System slides all tiles in that direction.<br/>3. System merges any two adjacent tiles with the same value into a single doubled tile.<br/>4. System updates the score.<br/>5. System spawns one new tile (value `2` or `4`) at a random empty cell.<br/>6. System checks for **Game Over** — if no valid move remains, transitions to the Game Over screen. |
-| **Alt flow** | If the input would not change the board (no slide and no merge possible in that direction), the move is **ignored** — no new tile is spawned and no score is added. |
-| **Post-condition** | The board state and score are updated; the game continues or ends. |
+| Actor | Player |
+| Pre-condition | A game session is active and not paused. |
+| Main flow | 1. Player performs a directional swipe.<br/>2. System slides all tiles in that direction.<br/>3. System merges adjacent tiles with the same value.<br/>4. System updates the score.<br/>5. System spawns one new tile with value `2` or `4` at a random empty cell.<br/>6. System checks for Game Over.<br/>7. System persists the in-progress game state locally. |
+| Alternative flow | If the input would not change the board, the move is ignored. No score is added, no tile is spawned, and no new save state is required. |
+| Post-condition | The board state and score are updated, or the game ends. |
 
 ### UC-03. Pause / Resume
 
 | Field | Description |
 |-------|-------------|
-| **Actor** | Player |
-| **Pre-condition** | A game session is active. |
-| **Main flow** | 1. Player taps the **Pause** button on the Game screen.<br/>2. System suspends gameplay (in Time Mode, the timer is also paused) and overlays a **Pause modal** on top of the Game screen — the underlying board remains visible.<br/>3. Player taps **Resume** to dismiss the modal and continue, or **Quit** to return to Home. |
-| **Post-condition** | Gameplay continues from the same state, or the session is abandoned. |
+| Actor | Player |
+| Pre-condition | A game session is active. |
+| Main flow | 1. Player taps the Pause button.<br/>2. System freezes gameplay and pauses the timer in Time Mode.<br/>3. System displays a Pause modal over the board.<br/>4. Player taps Resume to continue or Quit to return Home. |
+| Post-condition | Gameplay continues from the same state, or the session is abandoned. |
 
 ### UC-04. Adjust Settings
 
 | Field | Description |
 |-------|-------------|
-| **Actor** | Player |
-| **Pre-condition** | The Settings screen is displayed. |
-| **Main flow** | 1. Player changes a setting (e.g. sound on/off, theme, default time for Time Mode).<br/>2. System validates and applies the change immediately.<br/>3. System persists the new setting to local storage. |
-| **Post-condition** | The new settings are active and persisted across app restarts. |
+| Actor | Player |
+| Pre-condition | The Settings screen is displayed. |
+| Main flow | 1. Player changes a setting such as sound, theme, haptics, or default Time Mode duration.<br/>2. System applies the change immediately.<br/>3. System persists the setting to device-local storage. |
+| Post-condition | The new settings remain active across app restarts. |
 
-### UC-05. View Help (How to Play)
+### UC-05. View Help
 
 | Field | Description |
 |-------|-------------|
-| **Actor** | Player |
-| **Pre-condition** | The Home screen is displayed. |
-| **Main flow** | 1. Player taps the **Help** button on the Home screen.<br/>2. System navigates to the **Help** screen.<br/>3. System displays the gameplay instructions: how to swipe / use arrow keys, the merge rule (powers of 2), how scoring works, and a brief description of each mode (Classic vs Time).<br/>4. Player taps **Back** to return to the Home screen. |
-| **Post-condition** | The player has seen the instructions; the app returns to the Home screen. |
+| Actor | Player |
+| Pre-condition | The Home screen is displayed. |
+| Main flow | 1. Player opens Help.<br/>2. System displays gameplay instructions, scoring rules, and mode descriptions.<br/>3. Player returns to Home. |
+| Post-condition | The player has seen the instructions. |
+
+### UC-06. Resume Saved Game
+
+| Field | Description |
+|-------|-------------|
+| Actor | Player |
+| Pre-condition | A valid saved game exists in local storage. |
+| Main flow | 1. System detects saved game data on launch or Home render.<br/>2. System offers a resume action or automatically restores according to product decision.<br/>3. Player resumes the game.<br/>4. System restores board, score, mode, grid size, and remaining time if applicable. |
+| Post-condition | The previous session continues from the saved state. |
 
 ---
 
@@ -149,16 +159,17 @@ flowchart LR
 
 | ID | Rule |
 |----|------|
-| **BR-01** | The board is a square grid of size `N x N` where `N ∈ {4, 5, 6}`. |
-| **BR-02** | A new game starts with exactly **2 tiles** placed at random empty cells. |
-| **BR-03** | Every tile value must be a **power of 2** (2, 4, 8, 16, …). New spawned tiles have value `2` or `4`. |
-| **BR-04** | Two tiles can **merge** only if they have the **same value** and become adjacent during the same move; the result is one tile with value equal to the **sum** (i.e. doubled). |
-| **BR-05** | Within a single move, **a tile can participate in at most one merge** (no chain merges in the same swipe). |
-| **BR-06** | After every **valid** move, exactly **one** new tile (value `2` or `4`) is spawned at a random empty cell. |
-| **BR-07** | A move is **invalid** (ignored) if it does not change the board — no slide and no merge happens. No new tile is spawned and no score is added. |
-| **BR-08** | The score increases by the **value of the newly merged tile** for every merge that occurs in a move. |
-| **BR-09** | **Game Over** occurs when the board is full **and** no two adjacent tiles share the same value (no possible merge in any direction). |
-| **BR-10** | High scores are stored **per (game mode, grid size)** pair, independently. |
-| **BR-11** | In **Time Mode**, the session ends when the timer reaches zero, even if valid moves remain. The final score at that moment is recorded. |
-| **BR-12** | Pausing the game (UC-03) **also pauses the timer** in Time Mode. |
-| **BR-13** | All persistent data (settings, high scores) is stored **only in local storage** on the device — no network or cloud sync in the current version. |
+| BR-01 | The board is a square grid of size `N x N` where `N` is one of `4`, `5`, or `6`. |
+| BR-02 | A new game starts with exactly 2 tiles placed at random empty cells. |
+| BR-03 | Every tile value must be a power of 2. New spawned tiles have value `2` or `4`. |
+| BR-04 | Two tiles can merge only if they have the same value and become adjacent during the same move. |
+| BR-05 | A tile can participate in at most one merge per move. |
+| BR-06 | After every valid move, exactly one new tile is spawned at a random empty cell. |
+| BR-07 | A move is invalid if it does not change the board. Invalid moves do not spawn tiles and do not add score. |
+| BR-08 | The score increases by the value of each newly merged tile. |
+| BR-09 | Game Over occurs when the board is full and no adjacent same-value pair remains. |
+| BR-10 | High scores are stored independently per `(game mode, grid size)` pair. |
+| BR-11 | In Time Mode, the session ends when the timer reaches zero, even if valid moves remain. |
+| BR-12 | Pausing the game also pauses the timer in Time Mode. |
+| BR-13 | Persistent data is stored only on the device in the current version. No server, cloud sync, or account system is required. |
+| BR-14 | The app must respect mobile safe areas and remain playable on common Android and iOS screen sizes. |
